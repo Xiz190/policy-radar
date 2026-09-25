@@ -1,0 +1,165 @@
+[
+  {
+    "sourceId": "src_ai_mock_1",
+    "departmentName": "工业和信息化部",
+    "channelName": "人工智能",
+    "title": "关于印发《人工智能产业创新发展行动计划（2026-2028年）》的通知",
+    "url": "https://www.miit.gov.cn/ai-policy-1",
+    "listPublishedAt": "2026-06-20T08:00:00Z",
+    "firstSeenAt": "2026-06-20T09:00:00Z",
+    "importanceLevel": "核心关注",
+    "keywordScore": 25,
+    "categories": [
+      {"category": "AI/智能体/大模型", "score": 15, "topKeywords": ["人工智能", "大模型", "产业创新"]},
+      {"category": "B·强支持信号", "score": 10, "topKeywords": ["行动计划", "创新发展"]},
+      {"category": "算力/算力网/算电协同", "score": 5, "topKeywords": ["算力"]}
+    ],
+    "hasFunding": true,
+    "hasProcurement": false,
+    "hasPilot": true,
+    "hasStandards": false,
+    "isStarred": true
+  },
+  {
+    "sourceId": "src_finance_mock_3",
+    "departmentName": "财政部",
+    "channelName": "财政支持",
+    "title": "关于下达2026年人工智能专项补贴资金的通知",
+    "url": "https://www.mof.gov.cn/finance-policy-1",
+    "listPublishedAt": "2026-06-21T10:00:00Z",
+    "firstSeenAt": "2026-06-21T11:00:00Z",
+    "importanceLevel": "加急推荐",
+    "keywordScore": 23,
+    "categories": [
+      {"category": "AI/智能体/大模型", "score": 12, "topKeywords": ["人工智能", "专项补贴"]},
+      {"category": "B·强支持信号", "score": 11, "topKeywords": ["补贴资金", "财政支持"]}
+    ],
+    "hasFunding": true,
+    "hasProcurement": false,
+    "hasPilot": false,
+    "hasStandards": false,
+    "isStarred": false
+  },
+  {
+    "sourceId": "src_data_mock_2",
+    "departmentName": "国家互联网信息办公室",
+    "channelName": "数据要素",
+    "title": "关于印发《数据要素市场建设实施方案》的通知",
+    "url": "https://www.cac.gov.cn/data-policy-1",
+    "listPublishedAt": "2026-06-18T09:30:00Z",
+    "firstSeenAt": "2026-06-18T10:30:00Z",
+    "importanceLevel": "核心关注",
+    "keywordScore": 22,
+    "categories": [
+      {"category": "数据要素/高质量数据集", "score": 15, "topKeywords": ["数据要素", "市场建设"]},
+      {"category": "A·强执行信号", "score": 7, "topKeywords": ["实施方案"]}
+    ],
+    "hasFunding": false,
+    "hasProcurement": false,
+    "hasPilot": false,
+    "hasStandards": true,
+    "isStarred": true
+  },
+  {
+    "sourceId": "src_ai_mock_1",
+    "departmentName": "工业和信息化部",
+    "channelName": "人工智能",
+    "title": "关于开展人工智能大模型应用试点工作的通知",
+    "url": "https://www.miit.gov.cn/ai-policy-2",
+    "listPublishedAt": "2026-06-22T14:00:00Z",
+    "firstSeenAt": "2026-06-22T15:00:00Z",
+    "importanceLevel": "加急推荐",
+    "keywordScore": 20,
+    "categories": [
+      {"category": "AI/智能体/大模型", "score": 10, "topKeywords": ["大模型", "应用试点"]},
+      {"category": "A·强执行信号", "score": 10, "topKeywords": ["试点工作"]}
+    ],
+    "hasFunding": false,
+    "hasProcurement": true,
+    "hasPilot": true,
+    "hasStandards": false,
+    "isStarred": false
+  },
+  {
+    "sourceId": "src_local_beijing",
+    "departmentName": "北京市人民政府",
+    "channelName": "各区热点",
+    "title": "全国首套《人工智能》特种邮票在石景山人形机器人数据训练中心首发",
+    "url": "https://www.beijing.gov.cn/local-news-1",
+    "listPublishedAt": "2026-06-26T08:00:00Z",
+    "firstSeenAt": "2026-06-26T09:00:00Z",
+    "importanceLevel": "重点内容",
+    "keywordScore": 83,
+    "categories": [
+      {"category": "AI/智能体/大模型", "score": 40, "topKeywords": ["人工智能", "人形机器人"]},
+      {"category": "产业合作/京津冀协同", "score": 30, "topKeywords": ["石景山", "数据训练"]},
+      {"category": "D·探索信号", "score": 13, "topKeywords": ["特种邮票", "首发"]}
+    ],
+    "hasFunding": false,
+    "hasProcurement": false,
+    "hasPilot": false,
+    "hasStandards": false,
+    "isStarred": true
+  },
+  {
+    "sourceId": "src_local_fengtai",
+    "departmentName": "北京市丰台区人民政府",
+    "channelName": "重大会议",
+    "title": "拓展应用边界 释放乘数效应 数据“变身”生产力 丰台“数据要素×”激活数据资产新价值",
+    "url": "https://www.fengtai.gov.cn/data-news-1",
+    "listPublishedAt": "2026-06-26T09:00:00Z",
+    "firstSeenAt": "2026-06-26T10:00:00Z",
+    "importanceLevel": "重点内容",
+    "keywordScore": 76,
+    "categories": [
+      {"category": "数据要素/高质量数据集", "score": 40, "topKeywords": ["数据要素", "数据资产"]},
+      {"category": "产业合作/京津冀协同", "score": 25, "topKeywords": ["乘数效应", "应用边界"]},
+      {"category": "政务服务/平台经济/数字经济", "score": 11, "topKeywords": ["数字经济", "生产力"]}
+    ],
+    "hasFunding": false,
+    "hasProcurement": false,
+    "hasPilot": false,
+    "hasStandards": false,
+    "isStarred": false
+  },
+  {
+    "sourceId": "src_moe_mock",
+    "departmentName": "教育部",
+    "channelName": "教育信息化",
+    "title": "关于推进人工智能教育应用试点示范工作的指导意见",
+    "url": "https://www.moe.gov.cn/ai-edu-1",
+    "listPublishedAt": "2026-06-23T10:00:00Z",
+    "firstSeenAt": "2026-06-23T11:00:00Z",
+    "importanceLevel": "重点内容",
+    "keywordScore": 18,
+    "categories": [
+      {"category": "AI/智能体/大模型", "score": 10, "topKeywords": ["人工智能", "教育应用"]},
+      {"category": "A·强执行信号", "score": 8, "topKeywords": ["试点示范", "指导意见"]}
+    ],
+    "hasFunding": true,
+    "hasProcurement": false,
+    "hasPilot": true,
+    "hasStandards": false,
+    "isStarred": false
+  },
+  {
+    "sourceId": "src_health_mock",
+    "departmentName": "国家卫生健康委员会",
+    "channelName": "智慧医疗",
+    "title": "关于印发《智慧医院建设指南（2026版）》的通知",
+    "url": "https://www.nhc.gov.cn/smart-hospital-1",
+    "listPublishedAt": "2026-06-24T08:30:00Z",
+    "firstSeenAt": "2026-06-24T09:30:00Z",
+    "importanceLevel": "普通内容",
+    "keywordScore": 12,
+    "categories": [
+      {"category": "AI/智能体/大模型", "score": 6, "topKeywords": ["智慧医院", "建设指南"]},
+      {"category": "政务服务/平台经济/数字经济", "score": 6, "topKeywords": ["智慧医疗"]}
+    ],
+    "hasFunding": false,
+    "hasProcurement": false,
+    "hasPilot": false,
+    "hasStandards": true,
+    "isStarred": false
+  }
+]

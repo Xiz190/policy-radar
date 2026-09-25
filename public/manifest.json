@@ -1,0 +1,19 @@
+{
+  "name": "创作者情报站",
+  "short_name": "情报站",
+  "description": "独立音乐人的AI工具动态与创作机会聚合平台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["news", "music", "productivity"],
+  "lang": "zh-CN"
+}

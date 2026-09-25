@@ -1,0 +1,334 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════
+   RADAR · 编辑台设计系统
+   一套系统，两个实例 —— 只有 --brand 按领域不同：
+   政策雷达 = 冷钢蓝 · 政策雷达 = 冷钢蓝
+   衬线标题 + 无衬线正文 + 等宽数据 + 细线分隔 + 近单色
+   ══════════════════════════════════════════════════════ */
+:root {
+  --brand: #1f5e7e;            /* 政策雷达 · 冷钢蓝 */
+  --brand-tint: #e9f0f4;       /* 极淡强调底 */
+  --brand-border: #c9dbe4;     /* 强调描边 */
+
+  --background: #f7f6f3;       /* 暖纸底 */
+  --foreground: #1b1a17;       /* 墨色 */
+
+  --card: #ffffff;
+  --card-foreground: #1b1a17;
+
+  --muted: #efede8;
+  --muted-foreground: #6b675f;
+
+  --border: #e4e1d9;           /* 细线 */
+  --input: #d9d6cd;
+  --ring: #1b1a17;
+
+  --primary: #1b1a17;          /* 墨色实底 */
+  --primary-foreground: #f7f6f3;
+
+  --secondary: #efede8;
+  --secondary-foreground: #1b1a17;
+
+  --accent: var(--brand-tint);
+  --accent-foreground: var(--brand);
+
+  --destructive: #b3261e;
+  --destructive-foreground: #f7f6f3;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, "Songti SC", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 标题用衬线（编辑台声音）；数据/时间用等宽等高数字 */
+h1, h2, h3, .font-display {
+  font-family: var(--font-newsreader), Georgia, "Songti SC", serif;
+  letter-spacing: -0.011em;
+}
+.font-serif { font-family: var(--font-newsreader), Georgia, "Songti SC", serif; }
+.font-mono, time, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+a { text-decoration: none; }
+
+/* 浏览器表面也归系统所有（选区/光标/滚动条/焦点环） */
+:root { accent-color: var(--brand); caret-color: var(--brand); }
+::selection { background: var(--brand); color: #fff; }
+* { scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 11px; height: 11px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 3px solid var(--background);
+  border-radius: 0;
+}
+*::-webkit-scrollbar-thumb:hover { background: #cdc9be; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* 编辑台改写①：把原紫色强调统一收敛到 --brand（领域色） */
+.text-violet-600, .text-violet-700, .text-violet-800,
+.text-indigo-600, .text-indigo-700 { color: var(--brand) !important; }
+.bg-violet-50, .bg-violet-100, .bg-indigo-50 { background-color: var(--brand-tint) !important; }
+.bg-violet-600, .bg-violet-700, .hover\:bg-violet-700:hover { background-color: var(--brand) !important; }
+.border-violet-200, .border-violet-300, .border-indigo-200 { border-color: var(--brand-border) !important; }
+.ring-violet-400, .ring-violet-500, .ring-violet-600 { --tw-ring-color: var(--brand) !important; }
+
+/* 编辑台改写②：收圆角、把塑料软阴影换成克制的编辑台阴影（有位移+柔化，非零位移光晕） */
+.rounded-3xl { border-radius: 10px !important; }
+.rounded-2xl { border-radius: 7px !important; }
+.rounded-xl  { border-radius: 5px !important; }
+.shadow-sm { box-shadow: 0 1px 2px rgb(27 26 23 / 0.04) !important; }
+.shadow    { box-shadow: 0 1px 3px rgb(27 26 23 / 0.05) !important; }
+.shadow-md { box-shadow: 0 2px 10px rgb(27 26 23 / 0.06) !important; }
+.shadow-lg, .shadow-xl { box-shadow: 0 10px 30px rgb(27 26 23 / 0.08) !important; }
+
+/* 过程动效：内容切换/进场的克制淡入（reduced-motion 下自动归零） */
+@keyframes radar-fade {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+.radar-fade { animation: radar-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+
+@layer utilities {
+  .bg-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .text-on-primary {
+    color: var(--primary-foreground) !important;
+  }
+
+  .bg-dark {
+    background-color: #0f172a;
+    color: #f8fafc;
+  }
+
+  .bg-dark * {
+    color: inherit;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   FONT SIZE  — scales everything via root font-size
+   ══════════════════════════════════════════════════════ */
+html[data-font-size="sm"] { font-size: 13px; }
+html[data-font-size="md"] { font-size: 15px; }
+html[data-font-size="lg"] { font-size: 17px; }
+html[data-font-size="xl"] { font-size: 19px; }
+
+/* ══════════════════════════════════════════════════════
+   REDUCED MOTION
+   ══════════════════════════════════════════════════════ */
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ══════════════════════════════════════════════════════
+   DARK MODE
+   The UI uses hardcoded Tailwind classes (bg-white etc.)
+   so we override them directly. Unlayered CSS beats
+   @layer utilities in the cascade.
+   ══════════════════════════════════════════════════════ */
+
+/* System dark — only when not forced to light */
+@media (prefers-color-scheme: dark) {
+  html:not(.light) {
+    color-scheme: dark;
+  }
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* backgrounds */
+html.dark .bg-white          { background-color: #111827 !important; }
+html.dark .bg-slate-50       { background-color: #1e293b !important; }
+html.dark .bg-slate-100      { background-color: #1e293b !important; }
+html.dark .bg-slate-200      { background-color: #334155 !important; }
+html.dark .bg-slate-800      { background-color: #0f172a !important; }
+html.dark .bg-slate-900      { background-color: #020617 !important; }
+
+/* header backdrop */
+html.dark .bg-white\/90      { background-color: rgb(17 24 39 / 0.93) !important; }
+html.dark .bg-white\/80      { background-color: rgb(17 24 39 / 0.85) !important; }
+html.dark .bg-slate-50\/90   { background-color: rgb(30 41 59 / 0.93) !important; }
+
+/* text */
+html.dark .text-slate-900    { color: #f1f5f9 !important; }
+html.dark .text-slate-800    { color: #e2e8f0 !important; }
+html.dark .text-slate-700    { color: #cbd5e1 !important; }
+html.dark .text-slate-600    { color: #94a3b8 !important; }
+html.dark .text-slate-500    { color: #64748b !important; }
+html.dark .text-slate-400    { color: #475569 !important; }
+/* text-slate-300 只用于深色底（白底上根本看不清），所以暗色模式不该把它反向调深
+   —— 否则深色底 + 深色字 = 黑底黑字。保持浅色。 */
+html.dark .text-slate-300    { color: #cbd5e1 !important; }
+
+/* borders */
+html.dark .border-slate-100  { border-color: #1e293b !important; }
+html.dark .border-slate-200  { border-color: #334155 !important; }
+html.dark .border-slate-300  { border-color: #475569 !important; }
+
+/* divides */
+html.dark .divide-slate-100 > * + * { border-color: #1e293b !important; }
+html.dark .divide-slate-200 > * + * { border-color: #334155 !important; }
+
+/* hover states */
+html.dark .hover\:bg-slate-50:hover  { background-color: #1e293b !important; }
+html.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
+html.dark .hover\:bg-white:hover     { background-color: #1e293b !important; }
+
+/* shadows */
+html.dark .shadow-sm  { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4) !important; }
+html.dark .shadow     { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4) !important; }
+html.dark .shadow-md  { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.45) !important; }
+html.dark .shadow-lg  { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5) !important; }
+html.dark .shadow-xl  { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.55), 0 8px 10px -6px rgb(0 0 0 / 0.55) !important; }
+
+/* tinted backgrounds — darken but keep hue */
+html.dark .bg-violet-50  { background-color: #1e1b4b !important; }
+html.dark .bg-violet-100 { background-color: #2e1065 !important; }
+html.dark .bg-emerald-50 { background-color: #022c22 !important; }
+html.dark .bg-sky-50     { background-color: #082f49 !important; }
+html.dark .bg-amber-50   { background-color: #451a03 !important; }
+html.dark .bg-rose-50    { background-color: #4c0519 !important; }
+html.dark .bg-orange-50  { background-color: #431407 !important; }
+html.dark .bg-blue-50    { background-color: #172554 !important; }
+html.dark .bg-indigo-50  { background-color: #1e1b4b !important; }
+html.dark .bg-teal-50    { background-color: #042f2e !important; }
+
+/* tinted text colors — lighten */
+html.dark .text-violet-700  { color: #a78bfa !important; }
+html.dark .text-violet-600  { color: #8b5cf6 !important; }
+html.dark .text-emerald-600 { color: #34d399 !important; }
+html.dark .text-emerald-700 { color: #10b981 !important; }
+html.dark .text-sky-600     { color: #38bdf8 !important; }
+html.dark .text-sky-700     { color: #0ea5e9 !important; }
+html.dark .text-amber-600   { color: #fbbf24 !important; }
+html.dark .text-amber-700   { color: #f59e0b !important; }
+html.dark .text-rose-600    { color: #fb7185 !important; }
+html.dark .text-rose-700    { color: #f43f5e !important; }
+html.dark .text-orange-600  { color: #fb923c !important; }
+html.dark .text-indigo-600  { color: #818cf8 !important; }
+html.dark .text-teal-600    { color: #2dd4bf !important; }
+html.dark .text-blue-600    { color: #60a5fa !important; }
+
+/* tinted borders */
+html.dark .border-violet-200 { border-color: #4c1d95 !important; }
+html.dark .border-emerald-200 { border-color: #064e3b !important; }
+html.dark .border-sky-200     { border-color: #075985 !important; }
+html.dark .border-amber-200   { border-color: #78350f !important; }
+
+/* inputs */
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* ══════════════════════════════════════════════════════
+   HIGH CONTRAST
+   ══════════════════════════════════════════════════════ */
+html[data-contrast="high"] .text-slate-500,
+html[data-contrast="high"] .text-slate-400 {
+  color: #1a1a1a !important;
+}
+/* 同 .text-slate-300：只用于深色底，高对比度下也保持浅色，不然是黑底黑字 */
+html[data-contrast="high"] .text-slate-300 {
+  color: #f1f5f9 !important;
+}
+html[data-contrast="high"] .text-slate-600 { color: #111 !important; }
+html[data-contrast="high"] .text-slate-700 { color: #000 !important; }
+html[data-contrast="high"] .text-slate-800 { color: #000 !important; }
+html[data-contrast="high"] .text-slate-900 { color: #000 !important; }
+
+html[data-contrast="high"] .border-slate-100,
+html[data-contrast="high"] .border-slate-200,
+html[data-contrast="high"] .border-slate-300 {
+  border-color: #000 !important;
+}
+
+html[data-contrast="high"] .bg-slate-50,
+html[data-contrast="high"] .bg-slate-100 {
+  background-color: #f0f0f0 !important;
+}
+
+/* dark + high contrast */
+html.dark[data-contrast="high"] .text-slate-600,
+html.dark[data-contrast="high"] .text-slate-500,
+html.dark[data-contrast="high"] .text-slate-400 {
+  color: #e5e5e5 !important;
+}
+html.dark[data-contrast="high"] .text-slate-700,
+html.dark[data-contrast="high"] .text-slate-800,
+html.dark[data-contrast="high"] .text-slate-900 {
+  color: #fff !important;
+}
+html.dark[data-contrast="high"] .border-slate-100,
+html.dark[data-contrast="high"] .border-slate-200,
+html.dark[data-contrast="high"] .border-slate-300 {
+  border-color: #fff !important;
+}
+
+/* ── Print optimization ─────────────────────────────── */
+@media print {
+  header, nav, footer,
+  [data-print-hide],
+  .mobile-bottom-nav,
+  button:not([data-print-show]) {
+    display: none !important;
+  }
+  body { background: white !important; padding: 0 !important; }
+  main { padding: 0 !important; }
+  .rounded-2xl, .rounded-3xl { border-radius: 8px !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  .shadow-sm, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+  section, article, .print-break-avoid { page-break-inside: avoid; }
+}
