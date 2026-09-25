@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-export function NavigationProgress() {
+function NavigationProgressInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [width, setWidth] = useState(0);
@@ -33,5 +33,14 @@ export function NavigationProgress() {
       className="pointer-events-none fixed left-0 top-0 z-[200] h-0.5 transition-all duration-200 ease-out"
       style={{ width: `${width}%`, backgroundColor: "var(--brand)", opacity: visible ? 1 : 0 }}
     />
+  );
+}
+
+// useSearchParams 必须包在 Suspense 里，否则生产构建静态生成会报错（missing-suspense-with-csr-bailout）
+export function NavigationProgress() {
+  return (
+    <Suspense fallback={null}>
+      <NavigationProgressInner />
+    </Suspense>
   );
 }
