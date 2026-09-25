@@ -1,0 +1,41 @@
+# 依赖
+node_modules
+.pnp
+.pnp.js
+
+# 生产构建
+.next
+out
+build
+dist
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+.env.production
+
+# 日志
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器
+.vscode
+.idea
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+*storybook.log
+storybook-static
+
+# Claude Code 本地配置
+.claude/settings.local.json
+
+# 备份密钥文件一律不入库
+.env*.bak*
