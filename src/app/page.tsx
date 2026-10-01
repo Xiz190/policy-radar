@@ -105,6 +105,9 @@ type ItemsApiResponse = {
 
 // 首页图/列表口径：最近 N 天"已发布"（list_published_at）的政策。改这一个数即可（7/10/15）。
 const RECENT_WINDOW_DAYS = 10;
+// 顶部"今天新增"的口径：近 24 小时新入库（first_seen_at），与创作者雷达一致。
+// 一次最多取这么多条；达到上限时显示 "200+"，不把上限冒充成真实数量。
+const RECENT_FETCH_LIMIT = 200;
 // 首页自动轮询间隔：每 5 分钟静默拉一次最新数据，用户不用手动刷新（爬虫每 30 分钟入库，5 分钟足够"感觉实时"）。
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -116,6 +119,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [dbAvailable, setDbAvailable] = useState(true);
   const [todayItems, setTodayItems] = useState<FocusItem[]>([]);
+  const [newlySeenItems, setNewlySeenItems] = useState<FocusItem[]>([]);
   const [starredItems, setStarredItems] = useState<FocusItem[]>([]);
   const [briefOpen, setBriefOpen] = useState(false);
   const [briefCopied, setBriefCopied] = useState(false);
@@ -129,14 +133,19 @@ export default function Home() {
         const from = new Date();
         from.setDate(from.getDate() - RECENT_WINDOW_DAYS);
         const fromDate = from.toISOString().slice(0, 10);
-        const [recentRes, starredRes] = await Promise.all([
+        const [recentRes, starredRes, newlySeenRes] = await Promise.all([
           fetch(`/api/monitor/items?dateField=list_published_at&fromDate=${fromDate}&sort=published_at&limit=200`, { signal: ac.signal, cache: "no-store" }),
           fetch(`/api/monitor/items?onlyStarred=1&sort=first_seen_at&limit=20`, { signal: ac.signal, cache: "no-store" }),
+          // 按收录日期先粗筛（接口只收 YYYY-MM-DD；默认排序先看优先级，只取前 N 条会漏掉新条目），
+          // 精确的 24 小时在下面 last24h 再筛
+          fetch(`/api/monitor/items?dateField=first_seen_at&fromDate=${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}&limit=${RECENT_FETCH_LIMIT}`, { signal: ac.signal, cache: "no-store" }),
         ]);
         const recent = (await recentRes.json()) as ItemsApiResponse;
         const starred = (await starredRes.json()) as ItemsApiResponse;
+        const newlySeen = (await newlySeenRes.json()) as ItemsApiResponse;
         if (ac.signal.aborted) return;
         setTodayItems((recent.items ?? []) as FocusItem[]);
+        setNewlySeenItems((newlySeen.items ?? []) as FocusItem[]);
         setStarredItems(((starred.items ?? []) as FocusItem[]).map((m) => ({ ...m, isStarred: true })));
         setDbAvailable(true);
       } catch (e) {
@@ -162,8 +171,11 @@ export default function Home() {
     } catch {}
   }, []);
 
-  const todayNewCount = todayItems.length;
-  const highPriorityCount = todayItems.filter(
+  // 原先直接用"近 10 天已发布、最多 200 条"的列表长度当"今天有 N 条"，数字是查询上限不是真实量
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const last24h = newlySeenItems.filter((i) => i.firstSeenAt && new Date(i.firstSeenAt).getTime() >= dayAgo);
+  const todayNewCount = last24h.length >= RECENT_FETCH_LIMIT ? `${RECENT_FETCH_LIMIT}+` : String(last24h.length);
+  const highPriorityCount = last24h.filter(
     (i) => i.importanceLevel === "核心关注" || i.importanceLevel === "加急" || i.importanceLevel === "重点内容"
   ).length;
 
@@ -369,11 +381,11 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setBriefOpen(true)}
-                    className="rounded-full border border-rose-200 bg-white/70 px-2.5 py-1 text-[11px] text-rose-600 transition hover:bg-white"
+                    className="rounded-full border border-[var(--brand-border)] bg-white/70 px-2.5 py-1 text-[11px] text-[var(--brand)] transition hover:bg-white"
                   >
                     生成简报
                   </button>
-                  <Link href="/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9" prefetch={false} className="text-xs text-rose-600 hover:underline">
+                  <Link href="/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9" prefetch={false} className="text-xs text-[var(--brand)] hover:underline">
                     查看全部 →
                   </Link>
                 </div>
@@ -388,8 +400,8 @@ export default function Home() {
                     >
                       <span className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                         item.importanceLevel === "核心关注" || item.importanceLevel === "加急"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-orange-100 text-orange-700"
+                          ? "bg-[var(--brand)] text-white"
+                          : "bg-[var(--brand-tint)] text-[var(--brand)]"
                       }`}>
                         {item.importanceLevel === "核心关注" || item.importanceLevel === "加急" ? "核心" : "重点"}
                       </span>

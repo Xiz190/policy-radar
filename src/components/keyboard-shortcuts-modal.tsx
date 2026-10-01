@@ -18,7 +18,7 @@ const SHORTCUTS = [
     { key: "G → H", label: "跳转首页" },
     { key: "G → M", label: "跳转监控" },
   ]},
-  { group: "收件箱", rows: [
+  { group: "动态资讯", rows: [
     { key: "J", label: "聚焦下一条目" },
     { key: "K", label: "聚焦上一条目" },
     { key: "Enter", label: "展开 / 折叠聚焦条目" },

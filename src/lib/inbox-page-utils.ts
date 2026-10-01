@@ -66,13 +66,19 @@ export function getShanghaiDateKeys(): { todayKey: string; yesterdayKey: string 
   return { todayKey, yesterdayKey };
 }
 
-export function formatDateLabel(dateKey: string): { label: string; isTodayOrYesterday: boolean } {
-  if (dateKey === "unknown") return { label: "未知日期", isTodayOrYesterday: false };
+export function formatDateLabel(dateKey: string, lang: "zh" | "en" = "zh"): { label: string; isTodayOrYesterday: boolean } {
+  if (dateKey === "unknown") return { label: lang === "en" ? "Unknown date" : "未知日期", isTodayOrYesterday: false };
   const { todayKey, yesterdayKey } = getShanghaiDateKeys();
   const [y, m, d] = dateKey.split("-");
   const parts = { year: Number(y), month: Number(m), day: Number(d) };
   if (!parts.year || !parts.month || !parts.day) return { label: dateKey, isTodayOrYesterday: false };
   const dayDate = new Date(parts.year, parts.month - 1, parts.day);
+  if (lang === "en") {
+    const monthDay = dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (dateKey === todayKey) return { label: `Today · ${monthDay}`, isTodayOrYesterday: true };
+    if (dateKey === yesterdayKey) return { label: `Yesterday · ${monthDay}`, isTodayOrYesterday: true };
+    return { label: dayDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }), isTodayOrYesterday: false };
+  }
   const weekdayCN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][dayDate.getDay()] || "";
   const monthLabel = `${parts.month}月${parts.day}日`;
   if (dateKey === todayKey) return { label: `今天 ${monthLabel}`, isTodayOrYesterday: true };
@@ -85,6 +91,7 @@ export type UrlInitialState = {
   onlyUnread: boolean;
   onlyStarred: boolean;
   onlyUrgent: boolean;
+  onlyFollowed: boolean;
   selectedDepts: Set<string>;
   selectedChannels: Set<string>;
   expandedDepts: Set<string>;
@@ -103,6 +110,7 @@ export function makeEmptyUrlState(): UrlInitialState {
     onlyUnread: false,
     onlyStarred: false,
     onlyUrgent: false,
+    onlyFollowed: false,
     selectedDepts: new Set<string>(),
     selectedChannels: new Set<string>(),
     expandedDepts: new Set<string>(),
@@ -129,6 +137,7 @@ export function parseUrlStateFromLocation(): UrlInitialState | null {
     const onlyUnreadParam = sp.get("onlyUnread");
     const onlyStarredParam = sp.get("onlyStarred");
     const onlyUrgentParam = sp.get("onlyUrgent");
+    const onlyFollowedParam = sp.get("onlyFollowed");
     const qParam = sp.get("q");
     const categoriesParam = sp.get("categories");
     const genresParam = sp.get("genres");
@@ -156,6 +165,7 @@ export function parseUrlStateFromLocation(): UrlInitialState | null {
       onlyUnread: onlyUnreadParam === "1" || onlyUnreadParam === "true",
       onlyStarred: onlyStarredParam === "1" || onlyStarredParam === "true",
       onlyUrgent: onlyUrgentParam === "1" || onlyUrgentParam === "true",
+      onlyFollowed: onlyFollowedParam === "1" || onlyFollowedParam === "true",
       selectedDepts: new Set(deptNames),
       selectedChannels: new Set(chNames),
       expandedDepts: new Set(deptNames),

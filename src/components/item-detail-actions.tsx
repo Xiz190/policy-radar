@@ -46,7 +46,7 @@ export function ItemDetailActions({
 
   return (
     <div className="flex flex-wrap gap-2">
-      <button
+      <button data-owner-only
         type="button"
         onClick={() => toggle("read")}
         disabled={isPending}
@@ -58,7 +58,7 @@ export function ItemDetailActions({
       >
         {isRead ? "已读 · 点击取消" : "标为已读"}
       </button>
-      <button
+      <button data-owner-only
         type="button"
         onClick={() => toggle("starred")}
         disabled={isPending}

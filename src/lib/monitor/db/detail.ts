@@ -1,6 +1,14 @@
 import { getPgPool } from "@/lib/db";
 import { normalizeItemUrl } from "../utils";
 
+// 这些列是 jsonb，pg 驱动取出来已经是对象/数组；旧代码对它 JSON.parse(String(...))，
+// 必然失败 → 信号拆解、抽取的日期在详情页永远读不出来。
+function asJson<T = unknown>(raw: unknown): T | null {
+  if (raw == null) return null;
+  if (typeof raw !== "string") return raw as T;
+  try { return JSON.parse(raw) as T; } catch { return null; }
+}
+
 export async function getDepartmentNamesWithItems() {
   const pool = getPgPool();
   const res = await pool.query<{ department_name: string; count: string }>(
@@ -129,7 +137,7 @@ function mapItemDetailRow(row: Record<string, unknown>): MonitorItemDetail {
   let extractedDates: Array<{ type: string; date: string; raw?: string }> = [];
   if (row.extracted_dates_json) {
     try {
-      const parsed = JSON.parse(String(row.extracted_dates_json));
+      const parsed = asJson(row.extracted_dates_json);
       if (Array.isArray(parsed)) extractedDates = parsed;
     } catch {}
   }
@@ -137,7 +145,7 @@ function mapItemDetailRow(row: Record<string, unknown>): MonitorItemDetail {
   let signalHitsRaw: Record<string, unknown> | null = null;
   if (row.signal_hits) {
     try {
-      const parsed: Record<string, unknown> = JSON.parse(String(row.signal_hits));
+      const parsed = asJson(row.signal_hits) as Record<string, unknown>;
       signalHitsRaw = parsed;
       if (parsed && typeof parsed._meta === "object" && parsed._meta !== null) {
         const m = parsed._meta as Record<string, unknown>;
@@ -208,10 +216,10 @@ function mapItemDetailRow(row: Record<string, unknown>): MonitorItemDetail {
     forecastMid: row.forecast_mid ? String(row.forecast_mid) : null,
     forecastLow: row.forecast_low ? String(row.forecast_low) : null,
     forecastNotes: row.forecast_notes ? String(row.forecast_notes) : null,
-    forecastSources: (() => { try { return row.forecast_sources_json ? JSON.parse(String(row.forecast_sources_json)) : null; } catch { return null; } })(),
-    policyChain: (() => { try { return row.policy_chain_json ? JSON.parse(String(row.policy_chain_json)) : null; } catch { return null; } })(),
-    industryImpact: (() => { try { return row.industry_impact_json ? JSON.parse(String(row.industry_impact_json)) : null; } catch { return null; } })(),
-    preSignals: (() => { try { return row.pre_signals_json ? JSON.parse(String(row.pre_signals_json)) : null; } catch { return null; } })(),
+    forecastSources: asJson(row.forecast_sources_json),
+    policyChain: asJson(row.policy_chain_json),
+    industryImpact: asJson(row.industry_impact_json),
+    preSignals: asJson(row.pre_signals_json),
     forecastUpdatedAt: row.forecast_updated_at ? (row.forecast_updated_at instanceof Date ? row.forecast_updated_at.toISOString() : String(row.forecast_updated_at)) : null,
   };
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { RadarChart, DonutChart, StatGrid } from "@/components/insight-charts";
+import { categoryDisplayLabel } from "@/lib/monitor/content-meta";
 
 // 结构化入参：字段全可选，两个项目的 todayItems 都能直接传进来
 type InsightItem = {
@@ -34,7 +35,8 @@ export function HomeInsightCarousel({ items }: { items: InsightItem[] }) {
     return [...m.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
-      .map(([label, value]) => ({ label: label.length > 5 ? label.slice(0, 5) : label, value }));
+      // 用显示名（法规政策 / 监管风险…），原始键如 "D·探索信号" 截断后会变成半个词
+      .map(([cat, value]) => ({ label: categoryDisplayLabel(cat), value }));
   })();
 
   // 重要性分布 → 环形图

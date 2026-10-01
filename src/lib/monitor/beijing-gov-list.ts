@@ -126,7 +126,7 @@ function extractDateFromHtml(html: string): string {
 
 // 北京市政府门户：<li> 项提取：标题、链接、日期
 // 日期可能出现在 <a> 内部（丰台区）或 <a> 外部（大兴区、北京市政府等）
-function extractFromListItem(liHtml: string, baseUrl: string): MonitorListItem | null {
+export function extractFromListItem(liHtml: string, baseUrl: string): MonitorListItem | null {
   const hrefMatch = /<a[^>]+href="([^"]+)"[^>]*>/.exec(liHtml);
   if (!hrefMatch) return null;
   const href = hrefMatch[1].trim();
@@ -172,6 +172,8 @@ function extractFromListItem(liHtml: string, baseUrl: string): MonitorListItem |
   // 二次清理：标题里可能残留 [区XX] 这类标注
   if (title) {
     title = title
+      // 源站 title 属性引号没配对时，会把 `' target="_blank">【置顶】标题` 或 `' target=` 吞进来；从残片处截断
+      .replace(/\s*['"]\s*target\s*=[\s\S]*$/i, "")
       .replace(/\s*\[[^\]]{1,15}\]\s*/g, " ")
       .replace(/\s+/g, " ")
       .trim();

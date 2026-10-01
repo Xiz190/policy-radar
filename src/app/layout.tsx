@@ -6,6 +6,8 @@ import { PrefsProvider } from "@/contexts/prefs-context";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { DemoModeGate } from "@/components/demo-mode-gate";
+import { ViewportZoomWatcher } from "@/components/viewport-zoom-watcher";
 
 // 编辑台字体系统：衬线标题(Newsreader) + 无衬线正文(IBM Plex Sans) + 等宽数据(IBM Plex Mono)
 const serif = Newsreader({
@@ -57,9 +59,12 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col pb-16 sm:pb-0">
         <PrefsProvider>
           <NavigationProgress />
+          {/* 公开快照站：访客只读提示条（本地开发/作者登录后不渲染） */}
+          <DemoModeGate />
           {children}
           <ChatbotWidget />
           <MobileBottomNav />
+          <ViewportZoomWatcher />
           <ServiceWorkerRegistration />
         </PrefsProvider>
       </body>

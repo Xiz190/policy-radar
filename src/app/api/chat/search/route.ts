@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPgPool, requireAdminToken } from "@/lib/db";
+import { getPgPool } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -88,11 +88,8 @@ type SearchHit = {
 };
 
 export async function POST(request: Request) {
-  const auth = requireAdminToken(request);
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
-  }
-
+  // 站内正文检索：只读、只检索站内已公开展示的内容，无写操作、不含密钥，
+  // 面向普通用户开放（不再要求 ADMIN_TOKEN）。LLM 问答（/api/chat/answer）仍保持鉴权。
   try {
     const body = await request.json();
     const query = (body.query || "").toString().trim();
@@ -125,7 +122,7 @@ export async function POST(request: Request) {
 
     const sqlOrParts = likeTerms.map(
       (_, i) =>
-        `(LOWER(mi.title) LIKE $${i + 1} OR LOWER(COALESCE(mi.summary,'')) LIKE $${i + 1} OR LOWER(COALESCE(mi.department_name,'')) LIKE $${i + 1} OR LOWER(COALESCE(mi.channel_name,'')) LIKE $${i + 1})`,
+        `(LOWER(mi.title) LIKE $${i + 1} OR LOWER(COALESCE(mi.summary,'')) LIKE $${i + 1} OR LOWER(COALESCE(mi.department_name,'')) LIKE $${i + 1} OR LOWER(COALESCE(ms.channel_name,'')) LIKE $${i + 1})`,
     );
     const whereClause =
       sqlOrParts.length > 0
@@ -145,7 +142,7 @@ export async function POST(request: Request) {
           mi.list_published_at,
           mi.first_seen_at,
           mi.department_name,
-          mi.channel_name,
+          ms.channel_name,
           mi.keyword_score,
           mi.importance_level,
           mi.matched_categories,
@@ -155,6 +152,7 @@ export async function POST(request: Request) {
           mi.forecast_mid,
           mi.forecast_low
         FROM monitor_items mi
+        LEFT JOIN monitor_sources ms ON ms.id = mi.source_id
         ${whereClause}
         ORDER BY COALESCE(mi.list_published_at, mi.first_seen_at) DESC
         LIMIT 200
@@ -203,7 +201,11 @@ export async function POST(request: Request) {
       let categories: Array<{ category: string; score: number; topKeywords?: string[] }> = [];
       if (row.matched_categories) {
         try {
-          const parsed = JSON.parse(String(row.matched_categories));
+          // jsonb 列：pg 会直接返回已解析的数组；老数据可能是字符串，做双重兼容。
+          const parsed =
+            typeof row.matched_categories === "string"
+              ? JSON.parse(row.matched_categories)
+              : row.matched_categories;
           if (Array.isArray(parsed)) categories = parsed;
         } catch {
           // ignore
@@ -234,14 +236,27 @@ export async function POST(request: Request) {
     }
 
     // —— 3. 排序：综合分为主；同分以时间倒序
+    const toTime = (v: string | Date | null): number => {
+      if (!v) return 0;
+      const t = v instanceof Date ? v.getTime() : new Date(v).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
     hits.sort((a, b) => {
       if (Math.abs(b.itemScore - a.itemScore) > 0.0001) return b.itemScore - a.itemScore;
-      const at = a.listPublishedAt || a.firstSeenAt || "0";
-      const bt = b.listPublishedAt || b.firstSeenAt || "0";
-      return bt.localeCompare(at);
+      // 时间字段是 timestamp（pg 返回 Date 对象），统一转毫秒再比较，避免 localeCompare 崩溃。
+      return toTime(b.listPublishedAt) - toTime(a.listPublishedAt);
     });
 
-    const top = hits.slice(0, topItems);
+    // 同一篇文章常被多个网站原样转载，标题完全相同：只留排序最靠前的一份，免得助手引用三遍同一条
+    const seenTitles = new Set<string>();
+    const top = hits
+      .filter((h) => {
+        const key = (h.title ?? "").trim();
+        if (seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return true;
+      })
+      .slice(0, topItems);
 
     // —— 4. 组装前端数据（把 paragraphs 去掉换成 hitParagraphs，减小 payload）
     const items = top.map((h) => ({

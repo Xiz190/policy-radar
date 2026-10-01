@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/site-header";
+import { BackButton } from "@/components/back-button";
 import { ResearchListClient } from "@/components/research-list-client";
 import {
   ensureMonitorSchema,
@@ -102,6 +103,9 @@ export default async function ResearchPage() {
       )}
 
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-4">
+          <BackButton />
+        </div>
         {/* 页头 */}
         <section className="mb-6">
           <div className="flex items-center gap-2 text-sm text-slate-500">

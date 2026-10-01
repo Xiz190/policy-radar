@@ -1,4 +1,5 @@
 import { runMonitorOnce } from "@/lib/monitor/runner";
+import { isPublicDemo } from "@/lib/demo-mode";
 
 export const SCHEDULE_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -109,6 +110,10 @@ export function isSchedulerRunning(): boolean {
 }
 
 export async function ensureAutoMonitorBootstrapped(intervalMs: number = SCHEDULE_INTERVAL_MS) {
+  // 线上（serverless）不在进程里挂定时器：抓取交给 GitHub Actions（.github/workflows/crawl.yml）
+  if (isPublicDemo() || process.env.DISABLE_AUTO_MONITOR === "1") {
+    return null;
+  }
   if (bootstrapped) {
     return getSchedulerState();
   }

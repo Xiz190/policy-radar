@@ -72,12 +72,13 @@ function HeatmapCalendar({ data }: { data: { date: string; count: number }[] }) 
 
   const maxCount = Math.max(1, ...cells.map((c) => c.count));
   function cellColor(count: number) {
-    if (count === 0) return "#f1f5f9"; // slate-100
+    if (count === 0) return "var(--muted)";
     const intensity = count / maxCount;
-    if (intensity < 0.25) return "#bbf7d0"; // emerald-200
-    if (intensity < 0.5) return "#4ade80"; // emerald-400
-    if (intensity < 0.75) return "#16a34a"; // emerald-600
-    return "#14532d"; // emerald-900
+    // 单色阶：与全站唯一强调色一致（原为绿色，会被读成「成功/正常」）
+    if (intensity < 0.25) return "var(--brand-200)";
+    if (intensity < 0.5) return "var(--brand-400)";
+    if (intensity < 0.75) return "var(--brand-600)";
+    return "var(--brand-800)";
   }
 
   const GAP = 3;
@@ -115,7 +116,7 @@ function HeatmapCalendar({ data }: { data: { date: string; count: number }[] }) 
       </svg>
       <div className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400">
         <span>少</span>
-        {["#f1f5f9", "#bbf7d0", "#4ade80", "#16a34a", "#14532d"].map((c) => (
+        {["var(--muted)", "var(--brand-200)", "var(--brand-400)", "var(--brand-600)", "var(--brand-800)"].map((c) => (
           <span key={c} className="inline-block h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: c }} />
         ))}
         <span>多</span>
@@ -176,7 +177,8 @@ function DepartmentBarChart({
                 }).join(" ");
                 const last = pts[pts.length - 1].count;
                 const prev = pts[pts.length - 2].count;
-                const color = last > prev ? "#f59e0b" : last < prev ? "#64748b" : "#94a3b8";
+                // 走势只是更新量的起伏，没有好坏之分：上升用品牌色，下降/持平用中性灰（原为琥珀色）
+                const color = last > prev ? "var(--brand)" : last < prev ? "var(--muted-foreground)" : "var(--border)";
                 return (
                   <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 opacity-70">
                     <polyline points={coords} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -195,8 +197,9 @@ function DepartmentBarChart({
   );
 }
 
-function InsightLabel({ text, tone = "info" }: { text: string; tone?: "success" | "warning" | "danger" | "info" }) {
+function InsightLabel({ text, tone = "info" }: { text: string; tone?: "success" | "warning" | "danger" | "info" | "brand" }) {
   const styles: Record<string, string> = {
+    brand: "bg-[var(--brand-tint)] text-[var(--brand)]",
     success: "bg-emerald-100 text-emerald-700",
     warning: "bg-amber-100 text-amber-700",
     danger: "bg-rose-100 text-rose-700",
@@ -256,13 +259,9 @@ function TopHighlights({ items }: { items: NonNullable<DashboardData["topHighlig
         </div>
         <Link href={detailHref(lead)} className="group mt-1.5 block">
           <h3 className="font-serif text-base font-semibold leading-snug text-slate-900 group-hover:underline">{lead.title}</h3>
-          {lead.lens ? (
+          {/* 没有摘要就不占位，避免露出"开发中"这类未完成提示 */}
+          {lead.lens && (
             <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{lead.lens}</p>
-          ) : (
-            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-slate-100/70 px-2 py-1 text-[11px] text-slate-400">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-300" aria-hidden />
-              一句话摘要开发中 · 点标题查看原文详情
-            </span>
           )}
           <span className="mt-2 inline-flex items-center text-xs font-medium text-[var(--brand)] group-hover:underline">{lead.lens ? "查看完整解读" : "查看原文详情"} →</span>
         </Link>
@@ -322,7 +321,7 @@ function HotTopics({ items }: { items: NonNullable<DashboardData["hotTopics"]> }
               <span className="w-28 shrink-0 text-right text-[11px] tabular-nums text-slate-500">
                 {t.important > 0 && <span className="font-semibold text-[var(--brand)]">{t.important} 重点</span>}
                 {bridged && <span className="text-slate-300"> · </span>}
-                <span>{t.normal} 普通</span>
+                {(t.normal > 0 || t.important === 0) && <span>{t.normal} 普通</span>}
               </span>
             </Link>
           );
@@ -398,7 +397,7 @@ export default function DashboardPage() {
     if (fastest && fastest.growth.change > 10) {
       return {
         text: `增速最快：${fastest.departmentName} 环比 ${fastest.growth.change > 0 ? "+" : ""}${Math.round(fastest.growth.change)}%`,
-        tone: "warning" as const,
+        tone: "brand" as const,
       };
     }
     const top = data.departmentStats[0];
@@ -631,7 +630,7 @@ export default function DashboardPage() {
                           <div className="mt-0.5 flex items-baseline gap-2">
                             <span className="font-semibold tabular-nums text-slate-900">{thisWeek}</span>
                             {lastWeek > 0 && (
-                              <span className={`text-[11px] font-semibold ${up ? "text-emerald-600" : "text-rose-600"}`}>{up ? "↑" : "↓"}{Math.abs(pct)}%</span>
+                              <span className={`text-[11px] font-semibold ${up ? "text-[var(--brand)]" : "text-slate-500"}`}>{up ? "↑" : "↓"}{Math.abs(pct)}%</span>
                             )}
                           </div>
                         </div>

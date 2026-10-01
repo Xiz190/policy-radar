@@ -13,7 +13,9 @@ export function RadarChart({
 }) {
   const cx = size / 2;
   const cy = size / 2;
-  const r = size / 2 - 34;
+  // 轴标签画在圆外，左右各留 padX，最长的五字标签也不会被 SVG 边界切掉
+  const r = size / 2 - 44;
+  const padX = 30;
   const n = axes.length;
   const max = Math.max(1, ...axes.map((a) => a.value));
   const angle = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
@@ -27,7 +29,7 @@ export function RadarChart({
     .join(" ");
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto">
+    <svg width={size + padX * 2} height={size} viewBox={`${-padX} 0 ${size + padX * 2} ${size}`} className="mx-auto max-w-full">
       {rings.map((ring) => (
         <polygon
           key={ring}

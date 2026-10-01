@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { isOwnerRequest } from "@/lib/demo-mode";
 
 declare global {
   var __publicInfoSyncPgPool: Pool | undefined;
@@ -8,10 +9,8 @@ declare global {
 export function requireAdminToken(request: Request): { ok: true } | { ok: false; status: number; message: string } {
   const token = process.env.ADMIN_TOKEN?.trim();
   if (!token) return { ok: true };
-  const header = request.headers.get("authorization") ?? "";
-  const match = header.match(/^Bearer\s+(\S+)$/i);
-  const provided = match ? match[1] : "";
-  if (!provided || provided !== token) {
+  // Bearer 口令，或在 /unlock 登录后的作者 cookie
+  if (!isOwnerRequest(request)) {
     return { ok: false, status: 401, message: "缺少或不正确的 ADMIN_TOKEN（Authorization: Bearer <token>）" };
   }
   return { ok: true };
@@ -41,7 +40,7 @@ export function getPgPool(): Pool {
     global.__publicInfoSyncPgPool = new Pool({
       connectionString,
       max: poolMax,
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: 10000, // 云数据库闲置休眠后唤醒要几秒
       idleTimeoutMillis: 30000,
       statement_timeout: 60000,
     });

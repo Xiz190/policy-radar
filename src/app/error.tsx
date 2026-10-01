@@ -16,7 +16,7 @@ export default function Error({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
       <div className="max-w-md space-y-6">
-        <div className="text-6xl">⚠️</div>
+        <div className="text-6xl">⚠</div>
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">页面出错了</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">

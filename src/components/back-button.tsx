@@ -46,7 +46,7 @@ export function FloatingBackButton() {
           window.location.href = "/inbox";
         }
       }}
-      className="fixed bottom-6 left-6 z-50 inline-flex h-12 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/90 px-5 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 backdrop-blur transition hover:bg-white"
+      className="hide-when-zoomed fixed bottom-6 left-6 z-50 inline-flex h-12 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/90 px-5 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 backdrop-blur transition hover:bg-white"
       aria-label="返回"
     >
       ← 返回

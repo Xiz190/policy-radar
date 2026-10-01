@@ -49,7 +49,7 @@ export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; u
   }
 
   return (
-    <button
+    <button data-owner-only
       type="button"
       onClick={handleClick}
       disabled={loading}

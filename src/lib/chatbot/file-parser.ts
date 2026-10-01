@@ -149,7 +149,7 @@ export async function parseFile(file: File): Promise<ParsedResult> {
     if (fileName.endsWith(".doc")) {
       result.fileType = "Word 文档 (.doc)";
       result.text =
-        "⚠️ 检测到旧式 Word 格式 (.doc)\n\n" +
+        "⚠ 检测到旧式 Word 格式 (.doc)\n\n" +
         "当前仅支持现代 Word (.docx) 格式。\n\n" +
         "推荐转换方法：\n" +
         "方法 1（最可靠）：\n" +
@@ -243,7 +243,7 @@ async function parsePdf(file: File): Promise<ParsedResult> {
 
   // 如果 PDF 没有文字（扫描件），提示
   if (!result.text || result.text.trim().length < 50) {
-    result.text = `⚠️ 该 PDF 可能是扫描件（图片 PDF），无法直接提取文字。\n\n建议：\n1. 尝试使用 OCR 功能重新上传（当前支持图片文件的 OCR）\n2. 或将 PDF 每页另存为图片后再上传\n3. 或手动复制粘贴关键内容到对话框\n\nPDF 基本信息：\n• 页数：${pdf.numPages}\n• 文件大小：${(file.size / 1024 / 1024).toFixed(2)} MB`;
+    result.text = `⚠ 该 PDF 可能是扫描件（图片 PDF），无法直接提取文字。\n\n建议：\n1. 尝试使用 OCR 功能重新上传（当前支持图片文件的 OCR）\n2. 或将 PDF 每页另存为图片后再上传\n3. 或手动复制粘贴关键内容到对话框\n\nPDF 基本信息：\n• 页数：${pdf.numPages}\n• 文件大小：${(file.size / 1024 / 1024).toFixed(2)} MB`;
   }
 
   return result;
@@ -271,12 +271,12 @@ async function parseDocx(file: File): Promise<ParsedResult> {
       .map((m) => `• ${m.message}`);
 
     if (warnings.length > 0) {
-      result.text += `\n\n⚠️ 解析提示：\n${warnings.join("\n")}\n\n(如有图片内容，无法从 .docx 中自动提取文字)`;
+      result.text += `\n\n⚠ 解析提示：\n${warnings.join("\n")}\n\n(如有图片内容，无法从 .docx 中自动提取文字)`;
     }
   }
 
   if (!result.text || result.text.trim().length < 10) {
-    result.text = `⚠️ Word 文档内容为空，或全部为图片。\n\n建议：\n1. 检查 Word 文档是否有文字内容\n2. 如果是纯图片，请另存为图片文件后用 OCR 识别`;
+    result.text = `⚠ Word 文档内容为空，或全部为图片。\n\n建议：\n1. 检查 Word 文档是否有文字内容\n2. 如果是纯图片，请另存为图片文件后用 OCR 识别`;
   }
 
   return result;
@@ -310,7 +310,7 @@ async function parseImage(file: File): Promise<ParsedResult> {
     const ocrText = ocrResult.data?.text || "";
 
     if (ocrText.trim().length < 10) {
-      result.text = `⚠️ OCR 识别完成，但没有识别到足够的文字内容。\n\n可能的原因：\n1. 图片中的文字过小或模糊\n2. 图片质量不佳（如扫描件有噪点）\n3. 字体特殊或倾斜\n\n建议：\n• 使用更高清晰度的图片\n• 文字尽量水平，不要倾斜\n• 中文字体需要清晰可辨`;
+      result.text = `⚠ OCR 识别完成，但没有识别到足够的文字内容。\n\n可能的原因：\n1. 图片中的文字过小或模糊\n2. 图片质量不佳（如扫描件有噪点）\n3. 字体特殊或倾斜\n\n建议：\n• 使用更高清晰度的图片\n• 文字尽量水平，不要倾斜\n• 中文字体需要清晰可辨`;
     } else {
       result.text = ocrText.trim();
     }
@@ -320,7 +320,7 @@ async function parseImage(file: File): Promise<ParsedResult> {
       result.text += `\n\n---\nOCR 识别置信度：${Math.round(ocrResult.data.confidence)}%`;
     }
   } catch (error) {
-    result.text = `⚠️ OCR 识别失败：${(error as Error).message}\n\n可能是网络问题或图片格式不兼容。\n请尝试：\n1. 检查网络连接\n2. 使用 jpg/png 格式的图片\n3. 图片不要过大（建议 <5MB）`;
+    result.text = `⚠ OCR 识别失败：${(error as Error).message}\n\n可能是网络问题或图片格式不兼容。\n请尝试：\n1. 检查网络连接\n2. 使用 jpg/png 格式的图片\n3. 图片不要过大（建议 <5MB）`;
   }
 
   return result;
@@ -335,7 +335,7 @@ async function parseText(file: File): Promise<ParsedResult> {
   };
 
   if (!text || text.trim().length < 10) {
-    result.text = "⚠️ 文件内容为空或无法识别。";
+    result.text = "⚠ 文件内容为空或无法识别。";
   }
 
   return result;

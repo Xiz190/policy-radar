@@ -155,11 +155,11 @@ export async function getDepartmentDetail(departmentName: string): Promise<Depar
       [departmentName],
     ),
     pool.query<{ date: string; count: string }>(
-      `select date_trunc('day', i.first_seen_at)::date as date, count(*) as count
+      `select to_char(i.first_seen_at at time zone 'Asia/Shanghai', 'YYYY-MM-DD') as date, count(*) as count
        from monitor_items i
        join monitor_sources s on s.id = i.source_id
        where s.department_name = $1 and i.first_seen_at >= now() - interval '30 days'
-       group by date_trunc('day', i.first_seen_at)::date
+       group by 1
        order by date`,
       [departmentName],
     ),

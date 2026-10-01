@@ -337,7 +337,7 @@ export function QuickActionBar({
 
   return (
     <div className="sticky top-4 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm backdrop-blur-md">
-      <button
+      <button data-owner-only
         type="button"
         onClick={handleStarred}
         disabled={isPending}
@@ -374,7 +374,7 @@ export function QuickActionBar({
         </a>
       )}
 
-      <button
+      <button data-owner-only
         type="button"
         onClick={handleRead}
         disabled={isPending}
@@ -493,11 +493,6 @@ export function QuickActionBar({
         )}
       </div>
 
-      <div className="ml-auto flex items-center gap-1.5">
-        <span className="hidden text-xs text-slate-400 sm:inline">
-          {sourceId.slice(0, 20)}
-        </span>
-      </div>
 
       {/* 备注编辑器 */}
       {showNoteEditor && (

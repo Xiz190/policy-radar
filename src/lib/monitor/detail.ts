@@ -38,10 +38,14 @@ export async function captureDetailPage(url: string) {
   // 即使无 Content-Length 也截断，防止超大响应
   const text = rawText.length > MAX_HTML_BYTES ? rawText.slice(0, MAX_HTML_BYTES) : rawText;
 
-  const pageTitle = extractTitle(text);
-  const paragraphs = extractParagraphs(text).filter(
-    (p) => !/^(当前位置|您现在的位置|您当前的位置|所在位置)[:：]?/.test(p.trim()) || p.trim().length > 40,
-  );
+  const rawTitle = extractTitle(text);
+  const pageTitle = rawTitle ? decodeEntities(rawTitle) : null;
+  // 段落已去标签，这里把 &lt; &quot; 这类实体还原成真字符（原先直接入库，摘要里会露出 "&lt;"）
+  const paragraphs = extractParagraphs(text)
+    .map(decodeEntities)
+    .filter(
+      (p) => !/^(当前位置|您现在的位置|您当前的位置|所在位置)[:：]?/.test(p.trim()) || p.trim().length > 40,
+    );
   const attachments = extractAttachments(text, finalUrl);
   const externalLinks = extractExternalLinks(text, finalUrl);
   const contentQuality = assessContentQuality(paragraphs);
@@ -56,6 +60,28 @@ export async function captureDetailPage(url: string) {
     captureNote,
     finalUrl,
   };
+}
+
+// 完整解码 HTML 实体（含数字实体，如 &#39; &#x27; &quot; 等），与创作者雷达同一实现
+export function decodeEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&hellip;/g, "…")
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    .replace(/&ldquo;/g, "“")
+    .replace(/&rdquo;/g, "”")
+    .replace(/&lsquo;/g, "‘")
+    .replace(/&rsquo;/g, "’")
+    .replace(/&middot;/g, "·")
+    .replace(/&copy;/g, "©")
+    .replace(/&amp;/g, "&");
 }
 
 function extractTitle(html: string): string | null {

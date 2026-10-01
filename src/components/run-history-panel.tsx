@@ -30,6 +30,13 @@ function durationSec(start: string, end?: string): string {
   return `${(ms / 1000).toFixed(0)}s`;
 }
 
+const STATUS_STYLE: Record<MonitorRunRecord["status"], { label: string; dot: string; badge: string }> = {
+  success: { label: "成功", dot: "bg-emerald-400", badge: "bg-emerald-50 text-emerald-700" },
+  error: { label: "失败", dot: "bg-rose-400", badge: "bg-rose-50 text-rose-700" },
+  stale: { label: "中断", dot: "bg-slate-300", badge: "bg-slate-100 text-slate-500" },
+  running: { label: "运行中", dot: "animate-pulse bg-amber-400", badge: "bg-amber-50 text-amber-700" },
+};
+
 function countNew(results?: MonitorSourceRunResult[]): number {
   if (!results) return 0;
   return results.reduce((s, r) => s + (r.newCount ?? 0), 0);
@@ -71,6 +78,7 @@ export function RunHistoryPanel() {
       {runs.map((run) => {
         const newCount = countNew(run.results);
         const isOpen = expanded === run.id;
+        const status = STATUS_STYLE[run.status] ?? STATUS_STYLE.running;
         return (
           <div key={run.id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
             <button
@@ -79,25 +87,16 @@ export function RunHistoryPanel() {
               className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-slate-50"
             >
               <span
-                className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-                  run.status === "success"
-                    ? "bg-emerald-400"
-                    : run.status === "error"
-                    ? "bg-rose-400"
-                    : "animate-pulse bg-amber-400"
-                }`}
+                className={`inline-block h-2 w-2 shrink-0 rounded-full ${status.dot}`}
               />
               <span className="w-28 shrink-0 text-slate-500 tabular-nums">{fmtShanghai(run.startedAt)}</span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                run.status === "success"
-                  ? "bg-emerald-50 text-emerald-700"
-                  : run.status === "error"
-                  ? "bg-rose-50 text-rose-700"
-                  : "bg-amber-50 text-amber-700"
-              }`}>
-                {run.status === "success" ? "成功" : run.status === "error" ? "失败" : "运行中"}
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.badge}`}>
+                {status.label}
               </span>
-              <span className="text-slate-500">耗时 {durationSec(run.startedAt, run.finishedAt)}</span>
+              {/* 中断任务的 finished_at 是被标记作废的时刻，不是真实耗时 */}
+              <span className="text-slate-500">
+                {run.status === "stale" ? "未跑完，已作废" : `耗时 ${durationSec(run.startedAt, run.finishedAt)}`}
+              </span>
               {newCount > 0 && (
                 <span className="ml-auto shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700">
                   +{newCount} 新条目

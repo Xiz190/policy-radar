@@ -2,6 +2,8 @@
 
 > 把「找 → 核实 → 关联 → 分析」这条情报工作流半自动化。**底座领域无关,领域配置决定视角**——同一台引擎,换个领域,就服务不同的用户。
 
+**在线演示**：<https://policy-radar-xiz.vercel.app>（演示模式：访客可浏览、搜索、使用问答助手；写操作与管理后台仅作者可用）
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.x-black)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4.x-teal)](https://tailwindcss.com/)
@@ -66,7 +68,7 @@ runner 统一调度(按 source.type 分发)
 | 框架 | Next.js 16(App Router)+ TypeScript 5 |
 | 数据库 | PostgreSQL 16 |
 | 样式 | Tailwind CSS 4 |
-| 测试 | Vitest |
+| 测试 | Vitest（762 个用例） |
 
 ---
 

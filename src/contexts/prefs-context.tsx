@@ -49,7 +49,8 @@ function load(): PrefsState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    // 政策雷达固定中文界面：政策源都是中文公文，英文界面盖在中文正文上只会中英混杂
+    return { ...DEFAULTS, ...JSON.parse(raw), language: "zh" };
   } catch {
     return DEFAULTS;
   }
@@ -152,7 +153,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     setHighContrast: (v) => update({ highContrast: v }),
     setReducedMotion: (v) => update({ reducedMotion: v }),
     setDarkMode: (v) => update({ darkMode: v }),
-    setLanguage: (v) => update({ language: v }),
+    setLanguage: () => {},
     setAccentColor: (v) => update({ accentColor: v }),
     setFocusMode: (v) => update({ focusMode: v }),
   };

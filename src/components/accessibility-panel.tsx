@@ -14,6 +14,18 @@ export function AccessibilityPanel() {
   const T = useT(prefs.language);
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  // 手机上按钮在顶栏中间，面板若照桌面「贴按钮右边往左展开」会伸出屏幕左边（360 宽时超出约 47px）。
+  // 手机改为左右各留 16px、贴在按钮下方展开，过长就面板内滚动；桌面不变。
+  const [mobileTop, setMobileTop] = useState<number | null>(null);
+
+  function toggle() {
+    if (!open && panelRef.current && window.matchMedia("(max-width: 639px)").matches) {
+      setMobileTop(panelRef.current.getBoundingClientRect().bottom + 8);
+    } else if (!open) {
+      setMobileTop(null);
+    }
+    setOpen((v) => !v);
+  }
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -38,7 +50,6 @@ export function AccessibilityPanel() {
     prefs.setHighContrast(false);
     prefs.setReducedMotion(false);
     prefs.setDarkMode(null);
-    prefs.setLanguage("zh");
   }
 
   return (
@@ -46,13 +57,14 @@ export function AccessibilityPanel() {
       {/* trigger */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-label={T("a11y.title")}
         aria-expanded={open}
-        className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-sm transition sm:px-3 ${
+        title={T("a11y.title")}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm transition ${
           open
-            ? "border-violet-400 bg-violet-50 text-violet-700"
-            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            ? "border-[var(--brand-border)] bg-[var(--brand-tint)] text-[var(--brand)]"
+            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
         }`}
       >
         {/* sun/accessibility icon */}
@@ -60,14 +72,26 @@ export function AccessibilityPanel() {
           <circle cx="12" cy="12" r="3" />
           <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
         </svg>
-        <span className="hidden sm:inline">{T("a11y.title")}</span>
       </button>
 
       {/* panel — uses inline style for dark bg so CSS override catches it */}
       {open && (
         <div
           className="absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
-          style={{ minWidth: "280px" }}
+          style={
+            mobileTop === null
+              ? { minWidth: "280px" }
+              : {
+                  position: "fixed",
+                  top: mobileTop,
+                  left: 16,
+                  right: 16,
+                  width: "auto",
+                  marginTop: 0,
+                  maxHeight: `calc(100dvh - ${mobileTop + 16}px)`,
+                  overflowY: "auto",
+                }
+          }
         >
           {/* header */}
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
@@ -82,32 +106,6 @@ export function AccessibilityPanel() {
           </div>
 
           <div className="space-y-4 p-4">
-            {/* AI Language */}
-            <div>
-              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                {T("a11y.language")}
-              </div>
-              <div className="mb-1.5 text-xs text-slate-400">
-                {T("a11y.language.note")}
-              </div>
-              <div className="flex gap-2">
-                {(["zh", "en"] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => prefs.setLanguage(lang)}
-                    className={`flex-1 rounded-lg border py-1.5 text-sm font-medium transition ${
-                      prefs.language === lang
-                        ? "border-violet-500 bg-violet-50 text-violet-700"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {lang === "zh" ? "中文" : "English"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Font Size */}
             <div>
               <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">

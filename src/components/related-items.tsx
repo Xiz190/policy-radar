@@ -47,7 +47,10 @@ function getImportanceBadge(level: string) {
 }
 
 export function RelatedItems({ data }: RelatedItemsProps) {
-  const [activeTab, setActiveTab] = useState<"sameTopic" | "sameDept" | "cited">("sameTopic");
+  // 默认打开第一个有内容的标签，免得一进来停在「同主题 (0) · 暂无」而旁边其实有内容
+  const [activeTab, setActiveTab] = useState<"sameTopic" | "sameDept" | "cited">(() =>
+    data.sameTopic.length > 0 ? "sameTopic" : data.sameDept.length > 0 ? "sameDept" : data.cited.length > 0 ? "cited" : "sameTopic",
+  );
 
   const items = data[activeTab];
 

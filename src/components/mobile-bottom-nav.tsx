@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePrefs } from "@/contexts/prefs-context";
 import { useT, type TranslationKey } from "@/lib/i18n";
+import { useDemoVisitor } from "@/hooks/use-demo-visitor";
+import { isOwnerOnlyPage } from "@/lib/owner-only";
 import {
   House, Inbox, RadioTower, Settings,
 } from "lucide-react";
@@ -19,7 +21,11 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const { focusMode, language } = usePrefs();
   const t = useT(language);
+  // 演示站访客看不到「监测」（系统管理是作者专属页）
+  const visitor = useDemoVisitor();
   if (focusMode) return null;
+
+  const tabs = visitor ? TABS.filter((tab) => !isOwnerOnlyPage(tab.href)) : TABS;
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -27,9 +33,9 @@ export function MobileBottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-sm sm:hidden">
-      <div className="grid grid-cols-4 safe-area-inset-bottom">
-        {TABS.map((tab) => {
+    <nav className="hide-when-zoomed fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-sm sm:hidden">
+      <div className="grid safe-area-inset-bottom" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map((tab) => {
           const active = isActive(tab.href);
           return (
             <Link

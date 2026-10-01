@@ -295,10 +295,24 @@ export function FirstTimeGuideModal({ onClose }: FirstTimeGuideModalProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    let seen = false;
     try {
-      const seen = localStorage.getItem("guide_modal_seen");
-      if (!seen) setVisible(true);
+      seen = Boolean(localStorage.getItem("guide_modal_seen"));
     } catch {}
+    if (seen) return;
+    let cancelled = false;
+    // 演示站访客改不了设置，「数据存在本地」对他们没意义（顶部已有只读提示条）；与创作者雷达同一判断
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me: { demo?: boolean; owner?: boolean } | null) => {
+        if (!cancelled && !(me?.demo && !me.owner)) setVisible(true);
+      })
+      .catch(() => {
+        if (!cancelled) setVisible(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleClose = () => {

@@ -428,6 +428,21 @@ export async function getInboxItemsByFilter(params: {
     pb.addClause(`(${subscriptionParts.join(" or ")})`);
   }
 
+  // 同一篇公文常被多个政府网站原样转载（全库约 1/6 标题重复），列表里会连着出现三遍。
+  // 未按来源/机构筛选时，同标题只保留最早收录的那份；按来源筛选时不去重，免得把用户指定来源的那份藏掉。
+  const filteringBySource =
+    Boolean(params.departmentName) ||
+    (params.sourceIds?.length ?? 0) > 0 ||
+    (params.channelNames?.length ?? 0) > 0;
+  if (!filteringBySource) {
+    pb.addClause(`not exists (
+      select 1 from monitor_items dup
+      join monitor_sources dms on dms.id = dup.source_id and dms.enabled = true
+      where dup.title = mi.title
+        and (dup.first_seen_at, dup.source_id, dup.url) < (mi.first_seen_at, mi.source_id, mi.url)
+    )`);
+  }
+
   const dateCol = params.dateField === "list_published_at" ? "mi.list_published_at" : "mi.first_seen_at";
   if (params.fromDate) pb.addClause(`${dateCol} >= ${pb.push(params.fromDate)}`);
   if (params.toDate) pb.addClause(`${dateCol} <= ${pb.push(params.toDate)}`);
@@ -548,6 +563,14 @@ export async function getInboxItemsByFilter(params: {
       finalParams,
     );
 
+  // 这几列是 jsonb，pg 驱动取出来已经是对象/数组；旧代码对它 JSON.parse(String(...))，
+  // 必然失败 → 关键词数恒为 0（卡片上"命中 0 词"）、体裁和信号强度也全丢了。
+  const asJson = (raw: unknown): unknown => {
+    if (raw == null) return null;
+    if (typeof raw !== "string") return raw;
+    try { return JSON.parse(raw); } catch { return null; }
+  };
+
   const items = res.rows.map((row) => {
     let cats: Array<{ category: string; score: number; topKeywords?: string[] }> = [];
     if (row.matched_categories) {
@@ -560,27 +583,15 @@ export async function getInboxItemsByFilter(params: {
       }
     }
     let genres: string[] = [];
-    if (row.matched_genres) {
-      try {
-        const parsed = JSON.parse(String(row.matched_genres));
-        if (Array.isArray(parsed)) genres = parsed.filter((x) => typeof x === "string");
-      } catch {}
-    }
+    const genresRaw = asJson(row.matched_genres);
+    if (Array.isArray(genresRaw)) genres = genresRaw.filter((x): x is string => typeof x === "string");
     let matchedKeywordCount: number | undefined;
-    if (row.matched_keywords) {
-      try {
-        const parsed = JSON.parse(String(row.matched_keywords));
-        if (Array.isArray(parsed)) matchedKeywordCount = parsed.length;
-      } catch {}
-    }
+    const keywordsRaw = asJson(row.matched_keywords);
+    if (Array.isArray(keywordsRaw)) matchedKeywordCount = keywordsRaw.length;
     let signalStrength: number | undefined;
-    if (row.signal_hits) {
-      try {
-        const parsed = JSON.parse(String(row.signal_hits));
-        if (parsed && typeof parsed === "object" && parsed._meta && typeof parsed._meta.totalSignalStrength === "number") {
-          signalStrength = parsed._meta.totalSignalStrength;
-        }
-      } catch {}
+    const hits = asJson(row.signal_hits) as { _meta?: { totalSignalStrength?: unknown } } | null;
+    if (hits && typeof hits === "object" && typeof hits._meta?.totalSignalStrength === "number") {
+      signalStrength = hits._meta.totalSignalStrength;
     }
     const toDateStr = (d: Date | string | null): string | null => {
       if (!d) return null;
