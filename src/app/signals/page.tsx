@@ -520,18 +520,18 @@ export default function SignalsPage() {
               <div className="mt-1 text-2xl font-semibold text-slate-900">
                 {stats.todayCount}
               </div>
-              <div className="mt-0.5 text-xs text-emerald-600">条新动态</div>
+              <div className="mt-0.5 text-xs text-slate-500">条新动态</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs text-slate-500">核心关注</div>
-              <div className="mt-1 text-2xl font-semibold text-red-600">
+              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]">
                 {stats.coreCount}
               </div>
               <div className="mt-0.5 text-xs text-slate-500">条最高优先级</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs text-slate-500">重点内容</div>
-              <div className="mt-1 text-2xl font-semibold text-orange-600">
+              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]/70">
                 {stats.highlightCount}
               </div>
               <div className="mt-0.5 text-xs text-slate-500">条高优先级</div>

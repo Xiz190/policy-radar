@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "@/lib/fetch-with-auth";
+import { usePrefs } from "@/contexts/prefs-context";
 import {
   Bell, Mailbox,
 } from "lucide-react";
@@ -29,6 +30,7 @@ export function BatchToolbar({
   onRefetch?: () => void;
   onMarkAll?: (action: "markAllRead" | "markAllUnread" | "markAllStarred" | "markAllUnstarred") => void;
 }) {
+  const en = usePrefs().language === "en";
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,26 +58,25 @@ export function BatchToolbar({
         });
         const data = (await res.json()) as { ok?: boolean; updated?: number; error?: string; mock?: boolean };
         if (!data.ok) throw new Error(data.error ?? "failed");
-        const label =
-          action === "markAllRead"
-            ? "已全部标记为已读"
-            : action === "markAllUnread"
-              ? "已全部标记为未读"
-              : action === "markAllStarred"
-                ? "已全部标记为重点"
-                : "已批量取消重点";
-        notify(`${label} · 更新 ${data.updated ?? 0} 条`);
+        const done: Record<string, [string, string]> = {
+          markAllRead: ["已全部标记为已读", "Marked all as read"],
+          markAllUnread: ["已全部标记为未读", "Marked all as unread"],
+          markAllStarred: ["已全部收藏", "Starred all"],
+          markAllUnstarred: ["已批量取消收藏", "Unstarred all"],
+        };
+        const [zh, enLabel] = done[action] ?? done.markAllUnstarred;
+        notify(en ? `${enLabel} · ${data.updated ?? 0} updated` : `${zh} · 更新 ${data.updated ?? 0} 条`);
         if (action === "markAllRead" || action === "markAllUnread" || action === "markAllStarred" || action === "markAllUnstarred") {
           onMarkAll?.(action as "markAllRead" | "markAllStarred" | "markAllUnstarred");
         }
         if (!data.mock) onRefetch?.();
       } catch (e) {
-        notify(`操作失败：${String((e as Error).message ?? e)}`);
+        notify(`${en ? "Failed: " : "操作失败："}${String((e as Error).message ?? e)}`);
       } finally {
         setBusy(null);
       }
     },
-    [onRefetch, onMarkAll],
+    [onRefetch, onMarkAll, en],
   );
 
   const filterPayload = useMemo(() => {
@@ -83,44 +84,30 @@ export function BatchToolbar({
     return payload;
   }, [filter]);
 
+  // 放在收件箱「⋯」菜单里：竖排纯文字项，与其他菜单项一致（不再自带卡片外框）
+  const itemCls = "flex w-full items-center rounded px-1 py-1.5 text-left text-sm text-slate-700 transition hover:bg-slate-100 disabled:opacity-60";
+  const busyText = en ? "Working…" : "处理中…";
   return (
-    <div className="relative flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <span className="text-xs text-slate-500">批量操作：</span>
-      <button
-        type="button"
-        onClick={() => runAction("markAllRead", { ...filterPayload, isRead: true, onlyUnread: true })}
-        disabled={busy === "markAllRead"}
-        className="inline-flex h-8 items-center rounded-full border border-slate-300 bg-white px-3 text-xs text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-      >
-        {busy === "markAllRead" ? "处理中…" : "全部标记为已读"}
+    <div className="relative">
+      <button data-owner-only type="button" className={itemCls} disabled={busy === "markAllRead"}
+        onClick={() => runAction("markAllRead", { ...filterPayload, isRead: true, onlyUnread: true })}>
+        {busy === "markAllRead" ? busyText : en ? "Mark all as read" : "全部标为已读"}
       </button>
-      <button
-        type="button"
-        onClick={() => runAction("markAllUnread", { ...filterPayload, isRead: false })}
-        disabled={busy === "markAllUnread"}
-        className="inline-flex h-8 items-center rounded-full border border-slate-300 bg-white px-3 text-xs text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-      >
-        {busy === "markAllUnread" ? "处理中…" : "全部标记为未读"}
+      <button data-owner-only type="button" className={itemCls} disabled={busy === "markAllUnread"}
+        onClick={() => runAction("markAllUnread", { ...filterPayload, isRead: false })}>
+        {busy === "markAllUnread" ? busyText : en ? "Mark all as unread" : "全部标为未读"}
       </button>
-      <button
-        type="button"
-        onClick={() => runAction("markAllStarred", { ...filterPayload, isStarred: true })}
-        disabled={busy === "markAllStarred"}
-        className="inline-flex h-8 items-center rounded-full border border-amber-300 bg-amber-50 px-3 text-xs text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
-      >
-        {busy === "markAllStarred" ? "处理中…" : "全部标记为重点"}
+      <button data-owner-only type="button" className={itemCls} disabled={busy === "markAllStarred"}
+        onClick={() => runAction("markAllStarred", { ...filterPayload, isStarred: true })}>
+        {busy === "markAllStarred" ? busyText : en ? "Star all" : "全部收藏"}
       </button>
-      <button
-        type="button"
-        onClick={() => runAction("markAllUnstarred", { ...filterPayload, isStarred: false, onlyStarred: true })}
-        disabled={busy === "markAllUnstarred"}
-        className="inline-flex h-8 items-center rounded-full border border-slate-300 bg-white px-3 text-xs text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-      >
-        {busy === "markAllUnstarred" ? "处理中…" : "批量取消重点"}
+      <button data-owner-only type="button" className={itemCls} disabled={busy === "markAllUnstarred"}
+        onClick={() => runAction("markAllUnstarred", { ...filterPayload, isStarred: false, onlyStarred: true })}>
+        {busy === "markAllUnstarred" ? busyText : en ? "Unstar all" : "全部取消收藏"}
       </button>
-      <span className="ml-auto text-[11px] text-slate-400">
-        基于当前筛选条件 · 全部标记已读仅作用于未读项
-      </span>
+      <p className="px-1 pt-1 text-xs text-slate-500">
+        {en ? "Applies to everything matching the current filters." : "作用于当前筛选下的全部条目。"}
+      </p>
       {toast ? (
         <div className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1.5 text-xs text-white shadow-lg">
           {toast}

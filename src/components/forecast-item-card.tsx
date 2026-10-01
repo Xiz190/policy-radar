@@ -372,7 +372,7 @@ export function ForecastItemCard({ item }: { item: ForecastItemData }) {
                 {aiHint ? <div className="mt-1 text-xs text-amber-700">{aiHint}</div> : null}
               </div>
               <div className="flex shrink-0 gap-2">
-                <button
+                <button data-owner-only
                   type="button"
                   onClick={handleAnalyzeWithAI}
                   disabled={isAnalyzing || isEditing}
@@ -397,7 +397,7 @@ export function ForecastItemCard({ item }: { item: ForecastItemData }) {
                   {isEditing ? "取消编辑" : "编辑预估"}
                 </button>
                 {isEditing ? (
-                  <button
+                  <button data-owner-only
                     type="button"
                     onClick={handleSave}
                     disabled={isSaving}

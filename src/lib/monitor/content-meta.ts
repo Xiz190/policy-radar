@@ -262,7 +262,8 @@ export function categoryLabel(cat: string): string {
   return getCategoryStyle(cat).label;
 }
 
-export function categoryDisplayLabel(cat: string): string {
+// lang 参数与创作者雷达同签名，便于共用页面代码；政策雷达界面固定中文，这里始终返回中文名
+export function categoryDisplayLabel(cat: string, _lang: "zh" | "en" = "zh"): string {
   return getCategoryStyle(cat).displayLabel;
 }
 

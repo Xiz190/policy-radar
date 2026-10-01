@@ -8,6 +8,8 @@ import { useScrollLock } from "@/hooks/use-scroll-lock";
 import {
   AlarmClock, Bell, BookOpen, ChartColumn, CircleCheck, ClipboardList, Clock, Flame, House, Inbox, Languages, Mail, Mailbox, Moon, Pin, RadioTower, Search, Settings, Star, TrendingUp, type LucideIcon,
 } from "lucide-react";
+import { useDemoVisitor } from "@/hooks/use-demo-visitor";
+import { isOwnerOnlyPage } from "@/lib/owner-only";
 
 type CmdItem = {
   id: string;
@@ -17,6 +19,10 @@ type CmdItem = {
   action: () => void;
   keywords?: string;
   type?: "nav" | "action" | "recent";
+  /** 跳转目标（nav 类）——演示站访客按 owner-only 清单过滤 */
+  href?: string;
+  /** 会写服务器的命令——演示站访客看不到 */
+  ownerOnly?: boolean;
 };
 
 type RecentEntry = {
@@ -81,23 +87,23 @@ function useCommandItems(onClose: () => void): CmdItem[] {
 
   return [
     // 导航
-    { id: "search",    type: "nav",    icon: Search, label: "全局搜索",     desc: "跨收件箱与信号雷达搜索", action: () => go("/search"),   keywords: "search 搜索 全局 查找" },
-    { id: "readlist",  type: "nav",    icon: Pin, label: "稍后读清单",   desc: "查看标记的待读条目",     action: () => go("/readinglist"), keywords: "reading list 稍后读 书签" },
-    { id: "digest",    type: "nav",    icon: Mail, label: "今日日报预览",  desc: "生成 HTML 邮件摘要",     action: () => go("/digest"),     keywords: "digest 日报 邮件 email" },
-    { id: "alerts",    type: "nav",    icon: Bell, label: "提醒规则",     desc: "设置关键词提醒阈值",     action: () => go("/alerts"),     keywords: "alerts 提醒 规则 通知" },
-    { id: "casestudy", type: "nav",    icon: BookOpen, label: "Case Study",   desc: "项目设计说明（作品集）", action: () => go("/casestudy"),  keywords: "case study 作品集 portfolio" },
-    { id: "stats",     type: "nav",    icon: TrendingUp, label: "个人统计",     desc: "阅读率、关键词热度等",   action: () => go("/stats"),      keywords: "stats 统计 阅读率 个人" },
-    { id: "home",      type: "nav",    icon: House, label: "我的工作台",   desc: "回到首页总览",          action: () => go("/"),         keywords: "home workspace 工作台" },
-    { id: "inbox",     type: "nav",    icon: Inbox, label: "全部动态",     desc: "浏览所有监测内容",       action: () => go("/inbox"),    keywords: "inbox 动态 收件箱" },
-    { id: "signals",   type: "nav",    icon: RadioTower, label: "信号雷达",     desc: "高价值信号筛选",         action: () => go("/signals"),  keywords: "signals 信号 雷达" },
-    { id: "subscribe", type: "nav",    icon: Bell, label: "关注设置",     desc: "订阅来源与关键词",       action: () => go("/subscribe"),keywords: "subscribe 关注 订阅" },
-    { id: "dashboard", type: "nav",    icon: ChartColumn, label: "数据趋势",     desc: "趋势分析与数据洞察",     action: () => go("/dashboard"),keywords: "dashboard 数据 趋势 图表" },
-    { id: "changelog", type: "nav",    icon: ClipboardList, label: "更新日志",     desc: "功能迭代记录",           action: () => go("/changelog"),keywords: "changelog 更新 历史" },
-    { id: "monitor",   type: "nav",    icon: Settings, label: "系统管理",     desc: "监测配置与任务运行",     action: () => go("/monitor"),  keywords: "monitor 系统 管理" },
-    { id: "keywords",  type: "nav",    icon: Languages, label: "关键词库",     desc: "管理全局关键词",         action: () => go("/keywords"), keywords: "keywords 关键词" },
+    { id: "search",    type: "nav",    icon: Search, label: "全局搜索",     desc: "跨收件箱与信号雷达搜索", href: "/search", action: () => go("/search"),   keywords: "search 搜索 全局 查找" },
+    { id: "readlist",  type: "nav",    icon: Pin, label: "稍后读清单",   desc: "查看标记的待读条目",     href: "/readinglist", action: () => go("/readinglist"), keywords: "reading list 稍后读 书签" },
+    { id: "digest",    type: "nav",    icon: Mail, label: "今日日报预览",  desc: "生成 HTML 邮件摘要",     href: "/digest", action: () => go("/digest"),     keywords: "digest 日报 邮件 email" },
+    { id: "alerts",    type: "nav",    icon: Bell, label: "提醒规则",     desc: "设置关键词提醒阈值",     href: "/alerts", action: () => go("/alerts"),     keywords: "alerts 提醒 规则 通知" },
+    { id: "casestudy", type: "nav",    icon: BookOpen, label: "Case Study",   desc: "项目设计说明（作品集）", href: "/casestudy", action: () => go("/casestudy"),  keywords: "case study 作品集 portfolio" },
+    { id: "stats",     type: "nav",    icon: TrendingUp, label: "个人统计",     desc: "阅读率、关键词热度等",   href: "/stats", action: () => go("/stats"),      keywords: "stats 统计 阅读率 个人" },
+    { id: "home",      type: "nav",    icon: House, label: "我的工作台",   desc: "回到首页总览",          href: "/", action: () => go("/"),         keywords: "home workspace 工作台" },
+    { id: "inbox",     type: "nav",    icon: Inbox, label: "全部动态",     desc: "浏览所有监测内容",       href: "/inbox", action: () => go("/inbox"),    keywords: "inbox 动态 收件箱" },
+    { id: "signals",   type: "nav",    icon: RadioTower, label: "信号雷达",     desc: "高价值信号筛选",         href: "/signals", action: () => go("/signals"),  keywords: "signals 信号 雷达" },
+    { id: "subscribe", type: "nav",    icon: Bell, label: "关注设置",     desc: "订阅来源与关键词",       href: "/subscribe", action: () => go("/subscribe"),keywords: "subscribe 关注 订阅" },
+    { id: "dashboard", type: "nav",    icon: ChartColumn, label: "数据趋势",     desc: "趋势分析与数据洞察",     href: "/dashboard", action: () => go("/dashboard"),keywords: "dashboard 数据 趋势 图表" },
+    { id: "changelog", type: "nav",    icon: ClipboardList, label: "更新日志",     desc: "功能迭代记录",           href: "/changelog", action: () => go("/changelog"),keywords: "changelog 更新 历史" },
+    { id: "monitor",   type: "nav",    icon: Settings, label: "系统管理",     desc: "监测配置与任务运行",     href: "/monitor", action: () => go("/monitor"),  keywords: "monitor 系统 管理" },
+    { id: "keywords",  type: "nav",    icon: Languages, label: "关键词库",     desc: "管理全局关键词",         href: "/keywords", action: () => go("/keywords"), keywords: "keywords 关键词" },
     // 快速筛选
-    { id: "starred",   type: "nav",    icon: Star, label: "仅看收藏",     desc: "在收件箱中只看收藏内容", action: () => go("/inbox?view=starred"), keywords: "starred 收藏 星标" },
-    { id: "unread",    type: "nav",    icon: Mailbox, label: "仅看未读",     desc: "在收件箱中只看未读内容", action: () => go("/inbox?onlyUnread=1"), keywords: "unread 未读" },
+    { id: "starred",   type: "nav",    icon: Star, label: "仅看收藏",     desc: "在收件箱中只看收藏内容", href: "/inbox?view=starred", action: () => go("/inbox?view=starred"), keywords: "starred 收藏 星标" },
+    { id: "unread",    type: "nav",    icon: Mailbox, label: "仅看未读",     desc: "在收件箱中只看未读内容", href: "/inbox?onlyUnread=1", action: () => go("/inbox?onlyUnread=1"), keywords: "unread 未读" },
     // 操作
     {
       id: "toggle-dark", type: "action", icon: Moon, label: "切换深色/浅色", desc: "当前：" + (prefs.darkMode === true ? "深色" : prefs.darkMode === false ? "浅色" : "跟随系统"),
@@ -108,7 +114,7 @@ function useCommandItems(onClose: () => void): CmdItem[] {
       keywords: "dark light 深色 浅色 主题",
     },
     {
-      id: "mark-all-read", type: "action", icon: CircleCheck, label: "全部标为已读", desc: "将收件箱所有条目标为已读",
+      id: "mark-all-read", type: "action", ownerOnly: true, icon: CircleCheck, label: "全部标为已读", desc: "将收件箱所有条目标为已读",
       action: async () => {
         onClose();
         try {
@@ -124,12 +130,12 @@ function useCommandItems(onClose: () => void): CmdItem[] {
     },
     {
       id: "go-urgent", type: "action", icon: Flame, label: "查看高优先级", desc: "跳转到核心关注和重点内容",
-      action: () => go("/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9"),
+      href: "/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9", action: () => go("/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9"),
       keywords: "urgent priority 紧急 高优先",
     },
     {
       id: "go-deadline", type: "action", icon: AlarmClock, label: "申报截止预警", desc: "查看即将截止的申报信号",
-      action: () => go("/signals"),
+      href: "/signals", action: () => go("/signals"),
       keywords: "deadline 截止 申报",
     },
   ];
@@ -144,7 +150,11 @@ export function CommandPalette({ open, onClose }: Props) {
   // 只有键盘那次才该滚动。否则会形成回环——悬停改高亮→滚动→新元素移到鼠标下→
   // 又触发悬停→再滚动，视觉上就是抖。
   const scrollOnNextChangeRef = useRef(false);
-  const items = useCommandItems(onClose);
+  const visitor = useDemoVisitor();
+  // 演示站访客：去掉作者专属页的入口和会写服务器的命令（命令可用回车执行，靠点击拦截兜不住）
+  const items = useCommandItems(onClose).filter(
+    (it) => !visitor || !(it.ownerOnly || (it.href && isOwnerOnlyPage(it.href))),
+  );
   const recentItems = useRecentItems(onClose);
   const { history, addHistory, clearHistory } = useSearchHistory();
 

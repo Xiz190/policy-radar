@@ -6,9 +6,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePrefs } from "@/contexts/prefs-context";
 import { useT } from "@/lib/i18n";
+import { pickLens } from "@/lib/localized-fields";
 import { categoryDisplayLabel, categoryTooltip } from "@/lib/monitor/content-meta";
 import {
-  Circle, ClipboardList, Clock, Dices, Flame, Landmark, Library, Lightbulb, Link as LinkIcon, MapPin, RadioTower, Save, Star, Tag, Target, Timer, TriangleAlert,
+  ArrowLeftRight, Check, ChevronDown, Circle, ClipboardList, Clock, Dices, Ellipsis, Flame, Landmark, Library, Lightbulb, Link as LinkIcon, MapPin, RadioTower, Save, PanelRight, SlidersHorizontal, Star, Tag, Target, Timer, TriangleAlert,
 } from "lucide-react";
 import { getPriorityMeta } from "@/lib/monitor/priority-levels";
 import { formatDateTimeFull } from "@/lib/date-utils";
@@ -54,6 +55,8 @@ import {
 } from "@/lib/inbox-page-utils";
 import { generateShareCard, downloadBlob } from "@/lib/share-card";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { useDemoVisitor } from "@/hooks/use-demo-visitor";
+import { notifyDemoReadonly } from "@/lib/demo-readonly";
 
 const SCROLL_KEY = "inbox-scroll-y";
 
@@ -126,6 +129,8 @@ type InboxItem = {
   deadlineDate?: string | null;
   matchedKeywordCount?: number;
   signalStrength?: number;
+  creatorLens?: string | null;
+  creatorLensEn?: string | null;
 };
 
 type SourceTreeNode = {
@@ -145,20 +150,22 @@ export default function InboxPage() {
 
   const { language } = usePrefs();
   const t = useT(language);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [q, setQ] = useState<string>(() => initial.q);
   const [onlyUnread, setOnlyUnread] = useState<boolean>(() => initial.onlyUnread);
   const [onlyStarred, setOnlyStarred] = useState<boolean>(() => initial.onlyStarred);
 
-  // 板块A：部委→栏目 筛选
-  // selectedDepts = set，空表示"全部部委"
-  // selectedSourceIds = set，空表示"不按 sourceId 过滤"（但若已选部委，则在其内部)
+  // 板块A：机构→栏目 筛选
+  // selectedDepts = set，空表示"全部机构"
+  // selectedSourceIds = set，空表示"不按 sourceId 过滤"（但若已选机构，则在其内部)
   // 逻辑：有 sourceId 选 sourceId；否则有 channelName 选 channelName；否则选部门
   const [selectedDepts, setSelectedDepts] = useState<Set<string>>(() => initial.selectedDepts);
   const [selectedChannels, setSelectedChannels] = useState<Set<string>>(() => initial.selectedChannels);
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(() => initial.expandedDepts);
 
-  // 板块A-2：内容类型（大类）筛选 —— 专用于收件箱，把部委原始栏目聚合为少量大类。
+  // 板块A-2：内容类型（大类）筛选 —— 专用于收件箱，把机构原始栏目聚合为少量大类。
   // 选中的大类在 buildParams 时会展开成对应的原始栏目名集合，与 selectedChannels 取并集。
   const [selectedChannelGroups, setSelectedChannelGroups] = useState<Set<ChannelGroupKey>>(new Set());
 
@@ -175,18 +182,21 @@ export default function InboxPage() {
   // 板块D：日期范围 + 排序
   const [fromDate, setFromDate] = useState<string>(() => initial.fromDate);
   const [toDate, setToDate] = useState<string>(() => initial.toDate);
-  const [dateField, setDateField] = useState<"list_published_at" | "first_seen_at">(() => {
-    if (initial.dateField !== "list_published_at") return initial.dateField;
-    try { return (JSON.parse(localStorage.getItem("inbox_view_prefs") ?? "{}").dateField ?? initial.dateField); } catch { return initial.dateField; }
-  });
-  const [sort, setSort] = useState<"relevance" | "first_seen_at" | "published_at" | "follow">(() => {
-    if (initial.sort !== "relevance") return initial.sort;
-    try { return (JSON.parse(localStorage.getItem("inbox_view_prefs") ?? "{}").sort ?? initial.sort); } catch { return initial.sort; }
-  });
+  // 初始值用固定默认（服务端/客户端首屏一致，避免 hydration 报错）；localStorage 偏好在下方挂载后恢复
+  const [dateField, setDateField] = useState<"list_published_at" | "first_seen_at">(initial.dateField);
+  const [sort, setSort] = useState<"relevance" | "first_seen_at" | "published_at" | "follow">(initial.sort);
   const [onlyFollowed, setOnlyFollowed] = useState<boolean>(false);
-  const [region, setRegion] = useState<"all" | "domestic" | "global">(() => {
-    try { return (JSON.parse(localStorage.getItem("inbox_view_prefs") ?? "{}").region ?? "all"); } catch { return "all"; }
-  });
+  const [region, setRegion] = useState<"all" | "domestic" | "global">("all");
+
+  // 挂载后再从 localStorage 恢复视图偏好（不在 useState 初始值里读，否则 SSR/CSR 首屏不一致会触发 hydration 报错）
+  useEffect(() => {
+    try {
+      const prefs = JSON.parse(localStorage.getItem("inbox_view_prefs") ?? "{}");
+      if (prefs.dateField) setDateField(prefs.dateField);
+      if (prefs.sort) setSort(prefs.sort);
+      if (prefs.region) setRegion(prefs.region);
+    } catch {}
+  }, []);
 
   // 搜索历史
   const [searchHistory, setSearchHistory] = useState<string[]>(() => {
@@ -210,6 +220,11 @@ export default function InboxPage() {
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
 
   const [items, setItems] = useState<InboxItem[]>([]);
+  // 演示站访客不能改收藏/已读/关注：在写操作入口统一挡住（按钮另有 data-owner-only 变灰与提示）。
+  // 用 ref 而不是直接读 state：键盘监听等闭包是早先创建的，读 ref 才拿得到最新身份。
+  const visitor = useDemoVisitor();
+  const visitorRef = useRef(false);
+  visitorRef.current = visitor;
   const [sourcesTree, setSourcesTree] = useState<SourceTreeNode[]>([]);
   const [categoriesWithCounts, setCategoriesWithCounts] = useState<CategoryCount[]>([]);
   const [genresWithCounts, setGenresWithCounts] = useState<GenreCount[]>([]);
@@ -236,7 +251,7 @@ export default function InboxPage() {
   const [page, setPage] = useState<number>(1); // 1-based
   const [totalCount, setTotalCount] = useState<number>(0);
 
-  // 视图切换：全部 / 未读 / 我的收藏 / 有信号 / 按部委 / 按标签
+  // 视图切换：全部 / 未读 / 我的收藏 / 有信号 / 按机构 / 按标签
   const [activeView, setActiveView] = useState<ViewMode>("all");
 
   // 键盘导航：j/k 上下，r 切换已读，s 切换收藏
@@ -392,7 +407,7 @@ export default function InboxPage() {
           }
         }
         console.debug(
-          `[InboxFetch] 订阅数据加载完成 部委=${depts.size}个 关键词=${kws.size}个`,
+          `[InboxFetch] 订阅数据加载完成 机构=${depts.size}个 关键词=${kws.size}个`,
         );
         setSubscribedDepartments(depts);
         setSubscribedKeywords(kws);
@@ -412,6 +427,7 @@ export default function InboxPage() {
       if (fromUrl.q !== q) setQ(fromUrl.q);
       if (fromUrl.onlyUnread !== onlyUnread) setOnlyUnread(fromUrl.onlyUnread);
       if (fromUrl.onlyStarred !== onlyStarred) setOnlyStarred(fromUrl.onlyStarred);
+      if (fromUrl.onlyFollowed) setOnlyFollowed(true);
       if (fromUrl.selectedDepts.size !== selectedDepts.size ||
           [...fromUrl.selectedDepts].some((d) => !selectedDepts.has(d))) {
         setSelectedDepts(fromUrl.selectedDepts);
@@ -475,7 +491,7 @@ export default function InboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 把「选中的部委 + 选中的栏目」映射成 sourceIds 列表（用于后端 IN 过滤）
+  // 把「选中的机构 + 选中的栏目」映射成 sourceIds 列表（用于后端 IN 过滤）
   function collectSourceIds(
     tree: SourceTreeNode[],
     depts: Set<string>,
@@ -511,6 +527,7 @@ export default function InboxPage() {
     toDate,
     dateField,
     sort,
+    region,
   ].join("§");
 
   const subscribedGroups = useMemo(() => {
@@ -650,10 +667,16 @@ export default function InboxPage() {
     if (sort) params.set("sort", sort);
     if (region !== "all") params.set("region", region);
 
-    const subscribedDepts = Array.from(subscribedDepartments);
-    const subscribedKws = Array.from(subscribedKeywords);
-    if (subscribedDepts.length > 0) params.set("subscribedDepartments", subscribedDepts.join(","));
-    if (subscribedKws.length > 0) params.set("subscribedKeywords", subscribedKws.join(","));
+    // 订阅（关注机构/关键词）只在「只看关注」打开时作为后端硬过滤条件；
+    // 否则收件箱默认展示全部内容，订阅仅用于前端的关注高亮/排序。
+    // 之前无条件下发导致：选中某来源时被订阅关键词（仅匹配标题）二次过滤，
+    // 中文标题几乎不含英文订阅词 → 明明有未读却返回 0 条，且大量内容被悄悄隐藏。
+    if (onlyFollowed) {
+      const subscribedDepts = Array.from(subscribedDepartments);
+      const subscribedKws = Array.from(subscribedKeywords);
+      if (subscribedDepts.length > 0) params.set("subscribedDepartments", subscribedDepts.join(","));
+      if (subscribedKws.length > 0) params.set("subscribedKeywords", subscribedKws.join(","));
+    }
 
     return params;
   }
@@ -909,6 +932,8 @@ export default function InboxPage() {
           deadlineDate: (r.deadlineDate as string | undefined) || null,
           matchedKeywordCount: typeof r.matchedKeywordCount === "number" ? r.matchedKeywordCount : undefined,
           signalStrength: typeof r.signalStrength === "number" ? r.signalStrength : undefined,
+          creatorLens: (r.creatorLens as string | undefined) || null,
+          creatorLensEn: (r.creatorLensEn as string | undefined) || null,
         };
       });
       setItems(list);
@@ -970,11 +995,10 @@ export default function InboxPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  // 分页统一走浮动页码条（FloatingPagination）。
-  // 曾经这里还挂了一套"无限滚动自动翻页"：滚到底部的哨兵进入视口就 setPage(p+1)。
-  // 但列表数据是整页替换（setItems(list) 而非追加），一旦某页内容不足一屏，
-  // 哨兵会持续处于视口 → 反复自增页码 → 反复替换内容，表现为"页码在闪、正文刷不出来"。
-  // 两套分页机制本就冲突，这里移除无限滚动，仅保留页码条。
+  // 无限滚动已移除：它与手动翻页（FloatingPagination）是两套分页范式。
+  // 本页是"替换式翻页"（每页 setItems 替换而非累加），自动 observer 会在
+  // sentinel 保持可见时连环触发 setPage(+1)，从第 1 页一路冲到最后一页并不断闪烁。
+  // 翻页统一走 FloatingPagination；sentinel ref 仅留作底部占位。
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
 
   // ===== 滚动位置保存 & 恢复（防抖 + 一次性恢复） =====
@@ -1097,10 +1121,10 @@ export default function InboxPage() {
           return ai - bi;
         });
       }
-      const { label, isTodayOrYesterday } = formatDateLabel(k);
+      const { label, isTodayOrYesterday } = formatDateLabel(k, language);
       return { dateKey: k, dateLabel: label, isTodayOrYesterday, items: list };
     });
-  }, [tagFilteredItems, dateField, sort]);
+  }, [tagFilteredItems, dateField, sort, language]);
   const hasAnyFilter =
     q.trim().length > 0 ||
     onlyUnread ||
@@ -1154,13 +1178,13 @@ export default function InboxPage() {
     return next;
   }
 
-  // 选中"部委"节点：切换 selectedDepts。若取消选中，则同时清空该部委下的 selectedChannels
+  // 选中"机构"节点：切换 selectedDepts。若取消选中，则同时清空该机构下的 selectedChannels
   function toggleDepartment(deptName: string) {
     const had = selectedDepts.has(deptName);
     const nextDepts = toggleInSet(selectedDepts, deptName);
     setSelectedDepts(nextDepts);
     if (had) {
-      // 取消选中部委 → 移除该部委下所有已选栏目
+      // 取消选中机构 → 移除该机构下所有已选栏目
       const deptChannels = sourcesTree.find((d) => d.departmentName === deptName)?.channels ?? [];
       const next = new Set(selectedChannels);
       deptChannels.forEach((c) => next.delete(c.channelName));
@@ -1169,7 +1193,7 @@ export default function InboxPage() {
   }
 
   function toggleChannel(deptName: string, channelName: string) {
-    // 若该部委没被选中，选栏目时自动把部委也标记上
+    // 若该机构没被选中，选栏目时自动把机构也标记上
     const nextDepts = new Set(selectedDepts);
     nextDepts.add(deptName);
     setSelectedDepts(nextDepts);
@@ -1177,6 +1201,7 @@ export default function InboxPage() {
   }
 
   async function markAllVisibleRead() {
+    if (visitorRef.current) return notifyDemoReadonly();
     const unread = displayItems.filter((i) => !i.isRead);
     if (unread.length === 0) return;
     await Promise.all(unread.map((i) => toggleRead(i.sourceId, i.url, true)));
@@ -1195,6 +1220,8 @@ export default function InboxPage() {
   }
 
   async function toggleRead(sourceId: string, url: string, next: boolean) {
+    // 访客：静默跳过（展开条目 1.5 秒后的自动标已读也走这里，不该凭空弹提示）
+    if (visitorRef.current) return;
     const key = `${sourceId}__${url}`;
     const prevReqId = readRequestIdMapRef.current.get(key) ?? 0;
     const myReqId = prevReqId + 1;
@@ -1234,6 +1261,7 @@ export default function InboxPage() {
   }
 
   async function toggleStarred(sourceId: string, url: string, next: boolean) {
+    if (visitorRef.current) return;
     const key = `${sourceId}__${url}`;
     const prevReqId = starredRequestIdMapRef.current.get(key) ?? 0;
     const myReqId = prevReqId + 1;
@@ -1425,6 +1453,7 @@ export default function InboxPage() {
         const item = flatItems.find((i) => itemKey(i.sourceId, i.url) === focusedKey);
         if (!item) return;
         e.preventDefault();
+        if (visitorRef.current && e.key !== "o") return notifyDemoReadonly();
         if (e.key === "r") toggleRead(item.sourceId, item.url, !item.isRead);
         if (e.key === "s") toggleStarred(item.sourceId, item.url, !item.isStarred);
         if (e.key === "o") window.open(item.finalUrl || item.url, "_blank");
@@ -1454,9 +1483,9 @@ export default function InboxPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [displayItems, focusedKey]);
 
-  // 把所有部委下出现过的"唯一栏目名"做聚合 —— 用于两大类：
-  //   A. 按部委→具体栏目做精细筛选（已在上面的折叠列表里）
-  //   B. 按"内容类型"（大类）做跨部委快速筛选（下面新渲染的板块）
+  // 把所有机构下出现过的"唯一栏目名"做聚合 —— 用于两大类：
+  //   A. 按机构→具体栏目做精细筛选（已在上面的折叠列表里）
+  //   B. 按"内容类型"（大类）做跨机构快速筛选（下面新渲染的板块）
   const uniqueChannelsPerName = useMemo(() => {
     const map = new Map<string, { count: number; unread: number }>();
     for (const node of sourcesTree) {
@@ -1499,553 +1528,356 @@ export default function InboxPage() {
     });
   }
 
+  // —— 工具栏「⋯」菜单里的动作（原先各自是一个常驻按钮）——
+  const quickFilterCount =
+    (onlyUnread ? 1 : 0) + (onlyStarred ? 1 : 0) + (onlyFollowed ? 1 : 0) + (fromDate || toDate ? 1 : 0);
+
+  function downloadText(content: string, filename: string, type: string) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportMarkdown() {
+    const lines: string[] = [`# ${t("inbox.export.md-title")} · ${new Date().toLocaleDateString(language === "en" ? "en-US" : "zh-CN")}`, ""];
+    const byDept: Record<string, typeof tagFilteredItems> = {};
+    for (const item of tagFilteredItems) {
+      (byDept[item.departmentName] ??= []).push(item);
+    }
+    for (const [dept, deptItems] of Object.entries(byDept)) {
+      lines.push(`## ${dept}`, "");
+      for (const item of deptItems) {
+        lines.push(`- [${item.title}](${item.finalUrl || item.url}) · ${item.listPublishedAt.slice(0, 10)}`);
+      }
+      lines.push("");
+    }
+    downloadText(lines.join("\n"), `radar-${new Date().toISOString().slice(0, 10)}.md`, "text/markdown;charset=utf-8");
+  }
+
+  function exportCsv() {
+    const yes = t("inbox.export.yes");
+    const no = t("inbox.export.no");
+    const header = t("inbox.export.csv-header");
+    const rows = tagFilteredItems.map((i) => [
+      `"${i.title.replace(/"/g, '""')}"`,
+      `"${i.departmentName}"`,
+      `"${i.channelName}"`,
+      i.listPublishedAt.slice(0, 10),
+      i.firstSeenAt.slice(0, 10),
+      i.isRead ? yes : no,
+      i.isStarred ? yes : no,
+      `"${i.url}"`,
+    ].join(","));
+    downloadText("\ufeff" + [header, ...rows].join("\n"), `inbox-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv;charset=utf-8;");
+  }
+
+  function copyViewLink() {
+    void navigator.clipboard.writeText(window.location.href).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
+
+  function pickRandomUnread() {
+    const unread = tagFilteredItems.filter((i) => !i.isRead);
+    const pool = unread.length > 0 ? unread : tagFilteredItems;
+    if (pool.length === 0) return;
+    const picked = pool[Math.floor(Math.random() * pool.length)];
+    const k = itemKey(picked.sourceId, picked.url);
+    if (!expandedItems.has(k)) void toggleExpand(picked.sourceId, picked.url);
+    setTimeout(() => {
+      document.querySelector(`[data-item-key="${CSS.escape(k)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <SiteHeader />
       <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
-        {/* 顶部标题区 */}
-        <section className="rounded-[24px] bg-slate-950 px-5 py-6 text-white shadow-sm sm:rounded-[32px] sm:px-8 sm:py-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-            <div className="space-y-2 max-w-2xl sm:space-y-3">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">{t("inbox.title")}</h1>
-              <p className="text-sm leading-6 text-white sm:leading-7">
-                {t("inbox.subtitle")}
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 sm:rounded-3xl sm:px-4 sm:py-4">
-                <div className="text-xs text-white">{t("inbox.stat.total")}</div>
-                <div className="mt-1 text-xl font-semibold sm:text-2xl">{totalCount}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 sm:rounded-3xl sm:px-4 sm:py-4">
-                <div className="text-xs text-white">{t("inbox.stat.unread")}</div>
-                <div className="mt-1 text-xl font-semibold sm:text-2xl">{totals.unreadCount}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 sm:rounded-3xl sm:px-4 sm:py-4">
-                <div className="text-xs text-white">{t("inbox.stat.key")}</div>
-                <div className="mt-1 text-xl font-semibold sm:text-2xl">
-                  {totals.starredCount} <span className="inline-flex flex-wrap items-center gap-0.5 text-[11px] text-white/85 sm:gap-1 sm:text-sm">· <Flame className="h-3 w-3 sm:h-3.5 sm:w-3.5" />{totals.urgentCount} <TriangleAlert className="h-3 w-3 sm:h-3.5 sm:w-3.5" />{totals.highlightCount}</span>
-                </div>
-              </div>
-            </div>
+        {/* 页头：标题 + 一行计数。原深色 hero、KPI 砖、焦点条、进度条、建议条、分布条都撤掉——
+            工作台要的是规整，第一条内容应该在首屏上半部就出现 */}
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{t("inbox.title")}</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {t("inbox.countline", { total: totalCount, unread: totals.unreadCount })}
+            </p>
           </div>
+        </header>
 
-          {/* 今日焦点条 */}
-          {todayFocusItems.length > 0 && (
-            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
-              <Flame className="h-4 w-4 shrink-0 text-white" />
-              <p className="flex-1 text-sm text-white">
-                今日 <strong>{todayFocusItems.length}</strong> 条「核心关注」尚未阅读——
+        {/* 视图切换：细线下划线 */}
+        <nav className="mt-5 flex gap-6 overflow-x-auto border-b border-slate-200 text-sm" aria-label={t("inbox.views")}>
+          {([
+            { key: "all" as ViewMode, label: t("inbox.view.all") },
+            { key: "unread" as ViewMode, label: t("inbox.view.unread") },
+            { key: "starred" as ViewMode, label: t("inbox.view.starred") },
+            { key: "signals" as ViewMode, label: t("inbox.view.signals") },
+            { key: "byDepartment" as ViewMode, label: t("inbox.view.bySource") },
+            { key: "byCategory" as ViewMode, label: t("inbox.view.byTag") },
+          ]).map((view) => (
+            <button
+              key={view.key}
+              type="button"
+              onClick={() => switchView(view.key)}
+              aria-current={activeView === view.key ? "page" : undefined}
+              className={`-mb-px shrink-0 border-b-2 pb-2.5 transition ${
+                activeView === view.key
+                  ? "border-slate-900 font-medium text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              {view.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* 工具栏：一行 = 搜索 · 范围 · 排序 · 筛选 · 更多。低频操作全收进「⋯」，功能一个不删 */}
+        <section className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <div className="relative min-w-[240px] flex-1">
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onFocus={() => setShowSearchHistory(true)}
+              onBlur={() => setTimeout(() => setShowSearchHistory(false), 150)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && q.trim()) {
+                  addToSearchHistory(q);
+                  setShowSearchHistory(false);
+                }
+              }}
+              placeholder={t("inbox.search.placeholder")}
+              className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none transition placeholder:text-slate-500 focus:border-slate-900"
+            />
+            {showSearchHistory && searchHistory.length > 0 && !q && (
+              <div className="absolute left-0 top-full z-20 mt-1 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
+                <div className="px-3 pb-1 pt-2 text-xs font-medium text-slate-500">{t("inbox.search.recent")}</div>
+                {searchHistory.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onMouseDown={() => { setQ(h); setShowSearchHistory(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                    {h}
+                  </button>
+                ))}
                 <button
                   type="button"
-                  onClick={() => {
-                    setImportanceLevels(new Set(["核心关注"]));
-                    setOnlyUnread(true);
+                  onMouseDown={() => {
+                    setSearchHistory([]);
+                    try { localStorage.removeItem("inbox_search_history"); } catch {}
+                    setShowSearchHistory(false);
                   }}
-                  className="mx-1 font-semibold underline underline-offset-2 decoration-white/60 hover:text-white/80"
+                  className="w-full border-t border-slate-100 px-3 py-2 text-center text-xs text-slate-500 transition hover:bg-slate-50"
                 >
-                  立即查看
+                  {t("inbox.search.clear-history")}
                 </button>
-              </p>
-              <button
-                type="button"
-                onClick={() => setFocusDismissed(true)}
-                className="shrink-0 text-sm text-white/40 hover:text-white/80"
-                aria-label="关闭"
-              >
-                ✕
-              </button>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
-          {/* 视图切换 Tab */}
-          <div className="mt-6 flex flex-wrap gap-1 rounded-2xl bg-white/10 p-1">
-            {[
-              { key: "all" as ViewMode, label: "全部动态", icon: Library },
-              { key: "unread" as ViewMode, label: "未读", icon: Circle },
-              { key: "starred" as ViewMode, label: "我的收藏", icon: Star },
-              { key: "signals" as ViewMode, label: "有信号", icon: RadioTower },
-              { key: "byDepartment" as ViewMode, label: "按机构", icon: Landmark },
-              { key: "byCategory" as ViewMode, label: "按标签", icon: Tag },
-            ].map((view) => (
+          {/* 国内 / 全球 */}
+          <div className="inline-flex h-9 overflow-hidden rounded-md border border-slate-300 text-xs" role="group" aria-label={t("inbox.region")}>
+            {(["all", "domestic", "global"] as const).map((r) => (
               <button
-                key={view.key}
+                key={r}
                 type="button"
-                onClick={() => switchView(view.key)}
-                className={`flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition ${
-                  activeView === view.key
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-white/70 hover:text-white"
-                }`}
+                onClick={() => { setRegion(r); setPage(1); }}
+                aria-pressed={region === r}
+                className={`px-3 transition ${region === r ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-50"}`}
               >
-                <view.icon className="h-4 w-4" aria-hidden />
-                <span>{view.label}</span>
+                {t(`inbox.region.${r}`)}
               </button>
             ))}
           </div>
-        </section>
 
-        <div className="mt-6">
-          <BatchToolbar
-            filter={{
-              q,
-              onlyUnread,
-              onlyStarred,
-              departmentName: selectedDepts.size === 1 ? Array.from(selectedDepts)[0] : undefined,
-              channelNames: selectedChannels.size > 0 ? Array.from(selectedChannels) : undefined,
-              importanceLevels: importanceLevels.size > 0 ? Array.from(importanceLevels) : undefined,
-              categories: selectedCategories.size > 0 ? Array.from(selectedCategories) : undefined,
-              fromDate: fromDate || undefined,
-              toDate: toDate || undefined,
-              dateField,
-            }}
-            onRefetch={refresh}
-            onMarkAll={handleBatchMarkAll}
-          />
-        </div>
+          {/* 排序 */}
+          <label className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 text-xs text-slate-600">
+            <span>{t("inbox.sort")}</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              className="bg-transparent font-medium text-slate-900 outline-none"
+            >
+              {hasSubscriptions && <option value="follow">{t("inbox.sort.follow")}</option>}
+              <option value="first_seen_at">{t("inbox.sort.first-seen")}</option>
+              <option value="published_at">{t("inbox.sort.published")}</option>
+              <option value="relevance">{t("inbox.sort.relevance")}</option>
+            </select>
+          </label>
 
-        {/* 搜索 + 基础筛选 */}
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative flex flex-1 items-center gap-2">
-              <input
-                type="search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onFocus={() => setShowSearchHistory(true)}
-                onBlur={() => setTimeout(() => setShowSearchHistory(false), 150)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && q.trim()) {
-                    addToSearchHistory(q);
-                    setShowSearchHistory(false);
-                  }
-                }}
-                placeholder="搜索标题、机构、栏目、正文段落…"
-                className="h-10 flex-1 rounded-2xl border border-slate-300 bg-slate-50 px-4 text-sm outline-none ring-0 transition placeholder:text-slate-400 focus:border-slate-500 focus:bg-white"
-              />
-              {showSearchHistory && searchHistory.length > 0 && !q && (
-                <div className="absolute left-0 top-full z-20 mt-1 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-                  <div className="px-3 pt-2 pb-1 text-[10px] font-medium text-slate-400">最近搜索</div>
-                  {searchHistory.map((h) => (
+          {/* 筛选 */}
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs transition ${
+              filtersOpen || quickFilterCount > 0 ? "border-slate-900 text-slate-900" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
+            {t("inbox.filters")}
+            {quickFilterCount > 0 && (
+              <span className="rounded-full bg-slate-900 px-1.5 text-[11px] font-medium leading-5 text-white">{quickFilterCount}</span>
+            )}
+          </button>
+
+          {/* 更多：批量、导出、分享、偏好 */}
+          <details className="group relative">
+            <summary
+              className="inline-flex h-9 cursor-pointer list-none items-center rounded-md border border-slate-300 px-2.5 text-slate-700 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden"
+              aria-label={t("inbox.more")}
+              title={t("inbox.more")}
+            >
+              <Ellipsis className="h-4 w-4" aria-hidden />
+            </summary>
+            <div className="absolute right-0 top-full z-30 mt-1 w-72 rounded-md border border-slate-200 bg-white p-1.5 text-sm shadow-lg">
+              <div className="px-2.5 pb-1 pt-1.5 text-xs font-medium text-slate-500">{t("inbox.menu.bulk")}</div>
+              <div className="px-1.5 pb-1.5">
+                <BatchToolbar
+                  filter={{
+                    q,
+                    onlyUnread,
+                    onlyStarred,
+                    departmentName: selectedDepts.size === 1 ? Array.from(selectedDepts)[0] : undefined,
+                    channelNames: selectedChannels.size > 0 ? Array.from(selectedChannels) : undefined,
+                    importanceLevels: importanceLevels.size > 0 ? Array.from(importanceLevels) : undefined,
+                    categories: selectedCategories.size > 0 ? Array.from(selectedCategories) : undefined,
+                    fromDate: fromDate || undefined,
+                    toDate: toDate || undefined,
+                    dateField,
+                  }}
+                  onRefetch={refresh}
+                  onMarkAll={handleBatchMarkAll}
+                />
+              </div>
+              {displayItems.some((i) => !i.isRead) && (
+                <MenuItem onClick={markAllVisibleRead}>{t("inbox.menu.mark-page-read")}</MenuItem>
+              )}
+              {expandedItems.size > 0 && (
+                <MenuItem onClick={() => setExpandedItems(new Set())}>{t("inbox.menu.collapse-all", { n: expandedItems.size })}</MenuItem>
+              )}
+              <MenuItem onClick={pickRandomUnread}>{t("inbox.menu.random")}</MenuItem>
+
+              <div className="my-1 border-t border-slate-100" />
+              <div className="px-2.5 pb-1 pt-1.5 text-xs font-medium text-slate-500">{t("inbox.menu.export")}</div>
+              {tagFilteredItems.length > 0 && <MenuItem onClick={exportMarkdown}>{t("inbox.menu.markdown")}</MenuItem>}
+              {tagFilteredItems.length > 0 && <MenuItem onClick={exportCsv}>{t("inbox.menu.csv")}</MenuItem>}
+              <MenuItem onClick={copyViewLink}>{linkCopied ? t("common.copied") : t("inbox.menu.copy-link")}</MenuItem>
+              {showPresetSave ? (
+                <div className="flex gap-1.5 px-2.5 py-1.5">
+                  <input
+                    type="text"
+                    value={presetNameInput}
+                    onChange={(e) => setPresetNameInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && savePreset()}
+                    placeholder={t("inbox.menu.preset-name")}
+                    autoFocus
+                    className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-slate-900"
+                  />
+                  <button type="button" onClick={savePreset} className="rounded bg-slate-900 px-2.5 text-xs font-medium text-white">{t("common.save")}</button>
+                </div>
+              ) : (
+                <MenuItem onClick={() => setShowPresetSave(true)}>{t("inbox.menu.save-filter")}</MenuItem>
+              )}
+
+              <div className="my-1 border-t border-slate-100" />
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+                <span className="text-xs text-slate-500">{t("inbox.menu.density")}</span>
+                <div className="inline-flex overflow-hidden rounded border border-slate-300 text-xs">
+                  {(["compact", "normal", "spacious"] as DensityMode[]).map((v) => (
                     <button
-                      key={h}
+                      key={v}
                       type="button"
-                      onMouseDown={() => { setQ(h); setShowSearchHistory(false); }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => setDensity(v)}
+                      aria-pressed={density === v}
+                      className={`px-2 py-1 transition ${density === v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
                     >
-                      <Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden />
-                      {h}
+                      {t(`inbox.density.${v}`)}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onMouseDown={() => {
-                      setSearchHistory([]);
-                      try { localStorage.removeItem("inbox_search_history"); } catch {}
-                      setShowSearchHistory(false);
-                    }}
-                    className="w-full border-t border-slate-100 px-3 py-2 text-center text-[11px] text-slate-400 transition hover:bg-slate-50"
-                  >
-                    清除历史记录
-                  </button>
                 </div>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              {/* 国内 / 全球 切换 */}
-              <div className="inline-flex rounded-full border border-slate-300 overflow-hidden">
-                {(["all", "domestic", "global"] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => { setRegion(r); setPage(1); }}
-                    className={`px-3 py-1.5 transition ${
-                      region === r
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {r === "all" ? "全部" : r === "domestic" ? "国内" : "全球"}
-                  </button>
-                ))}
               </div>
-              <label
-                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 transition ${
-                  onlyUnread ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <input type="checkbox" className="hidden" checked={onlyUnread} onChange={(e) => setOnlyUnread(e.target.checked)} />
-                仅看未读
-              </label>
-              <label
-                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 transition ${
-                  onlyStarred ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <input type="checkbox" className="hidden" checked={onlyStarred} onChange={(e) => setOnlyStarred(e.target.checked)} />
-                仅看重点
-              </label>
-              {hasSubscriptions && (
-                <label
-                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 transition ${
-                    onlyFollowed ? "border-[var(--brand)] bg-[var(--brand)] text-white" : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <input type="checkbox" className="hidden" checked={onlyFollowed} onChange={(e) => setOnlyFollowed(e.target.checked)} />
-                  <Target className="h-3.5 w-3.5" /> 仅看关注
-                </label>
-              )}
-              {hasAnyFilter ? (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1.5 text-slate-700 transition hover:bg-slate-50"
-                >
-                  清空筛选
-                </button>
-              ) : null}
-              {displayItems.some((i) => !i.isRead) && (
-                <button
-                  type="button"
-                  onClick={markAllVisibleRead}
-                  className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1.5 text-slate-700 transition hover:bg-slate-50"
-                >
-                  全部已读
-                </button>
-              )}
-              {/* 阅读进度 */}
-              {displayItems.length > 0 && (() => {
-                const readCount = displayItems.filter((i) => i.isRead).length;
-                const total = displayItems.length;
-                const pct = Math.round((readCount / total) * 100);
-                return (
-                  <button
-                    type="button"
-                    onClick={() => setOnlyUnread(!onlyUnread)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-200"
-                    title="点击切换仅看未读"
-                  >
-                    <span className="font-medium">已读 {readCount}/{total}</span>
-                    <span className={`font-semibold ${pct === 100 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400"}`}>
-                      {pct}%
-                    </span>
-                  </button>
-                );
-              })()}
-              {/* 导出 Markdown */}
-              {tagFilteredItems.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const lines: string[] = [`# 情报摘要 · ${new Date().toLocaleDateString("zh-CN")}`, ""];
-                    const byDept: Record<string, typeof tagFilteredItems> = {};
-                    for (const item of tagFilteredItems) {
-                      if (!byDept[item.departmentName]) byDept[item.departmentName] = [];
-                      byDept[item.departmentName].push(item);
-                    }
-                    for (const [dept, items] of Object.entries(byDept)) {
-                      lines.push(`## ${dept}`, "");
-                      for (const item of items) {
-                        lines.push(`- [${item.title}](${item.finalUrl || item.url}) · ${item.listPublishedAt.slice(0, 10)}`);
-                      }
-                      lines.push("");
-                    }
-                    const md = lines.join("\n");
-                    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `情报-${new Date().toISOString().slice(0, 10)}.md`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50"
-                  title="将当前页面所有条目导出为 Markdown 文件，可直接粘贴至文档或笔记工具"
-                >
-                  ↓ Markdown
-                </button>
-              )}
-              {/* 保存筛选方案 */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowPresetSave((v) => !v)}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50"
-                  title="保存当前筛选为方案"
-                >
-                  <Save className="mr-1 inline h-3.5 w-3.5" aria-hidden />保存筛选
-                </button>
-                {showPresetSave && (
-                  <div className="absolute left-0 top-full z-20 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-                    <input
-                      type="text"
-                      value={presetNameInput}
-                      onChange={(e) => setPresetNameInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && savePreset()}
-                      placeholder="方案名称…"
-                      autoFocus
-                      className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-violet-400"
-                    />
-                    <div className="mt-2 flex gap-2">
-                      <button type="button" onClick={savePreset} className="flex-1 rounded-lg py-1.5 text-xs font-medium text-white" style={{ backgroundColor: "var(--brand)" }}>保存</button>
-                      <button type="button" onClick={() => setShowPresetSave(false)} className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs text-slate-500">取消</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* 复制筛选链接 */}
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href).then(() => {
-                    const el = document.getElementById("inbox-copy-link-btn");
-                    if (el) { el.textContent = "✓ 已复制"; setTimeout(() => { if (el) el.textContent = "复制链接"; }, 2000); }
-                  });
-                }}
-                id="inbox-copy-link-btn"
-                title="复制当前筛选条件的页面链接，可发给他人直接复现相同视图"
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50"
-              >
-                <LinkIcon className="mr-1 inline h-3.5 w-3.5" aria-hidden />复制链接
-              </button>
-              {/* 导出 CSV */}
-              {tagFilteredItems.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const header = "标题,部委,栏目,发布日期,发现日期,已读,已收藏,URL";
-                    const rows = tagFilteredItems.map((i) => [
-                      `"${i.title.replace(/"/g, '""')}"`,
-                      `"${i.departmentName}"`,
-                      `"${i.channelName}"`,
-                      i.listPublishedAt.slice(0, 10),
-                      i.firstSeenAt.slice(0, 10),
-                      i.isRead ? "是" : "否",
-                      i.isStarred ? "是" : "否",
-                      `"${i.url}"`,
-                    ].join(","));
-                    const csv = [header, ...rows].join("\n");
-                    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `inbox-${new Date().toISOString().slice(0, 10)}.csv`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                  title="将当前页面所有条目导出为 CSV 文件，可在 Excel 或表格工具中打开"
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50"
-                >
-                  ↓ CSV
-                </button>
-              )}
             </div>
-          </div>
-          {/* 日期范围 + 排序 */}
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-            <span className="text-slate-500">日期范围：</span>
+          </details>
+
+          <span className="ml-auto text-xs tabular-nums text-slate-500">
+            {tagFilteredItems.length !== totalCount
+              ? t("inbox.showing", { shown: tagFilteredItems.length, total: totalCount })
+              : t("inbox.count", { n: totalCount })}
+          </span>
+        </section>
+
+        {/* 筛选面板：快捷开关 + 日期范围（按需展开，不常驻） */}
+        {filtersOpen && (
+          <section className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2.5 text-xs">
+            <FilterToggle on={onlyUnread} onChange={setOnlyUnread}>{t("inbox.filter.unread")}</FilterToggle>
+            <FilterToggle on={onlyStarred} onChange={setOnlyStarred}>{t("inbox.filter.starred")}</FilterToggle>
+            {hasSubscriptions && (
+              <FilterToggle on={onlyFollowed} onChange={setOnlyFollowed}>{t("inbox.filter.followed")}</FilterToggle>
+            )}
+            <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden />
+            <span className="text-slate-500">{t("inbox.filter.date")}</span>
             <input
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="h-8 rounded-full border border-slate-300 bg-white px-3 text-xs text-slate-700 outline-none hover:bg-slate-50 focus:border-slate-500"
+              aria-label={t("inbox.filter.from")}
+              className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 outline-none focus:border-slate-900"
             />
-            <span className="text-slate-400">—</span>
+            <span className="text-slate-400" aria-hidden>–</span>
             <input
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="h-8 rounded-full border border-slate-300 bg-white px-3 text-xs text-slate-700 outline-none hover:bg-slate-50 focus:border-slate-500"
+              aria-label={t("inbox.filter.to")}
+              className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 outline-none focus:border-slate-900"
             />
-            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-0.5">
-              {([
-                { v: "list_published_at", label: "按发布日期" },
-                { v: "first_seen_at", label: "按发现日期" },
-              ] as const).map((opt) => (
-                <button
-                  key={opt.v}
-                  type="button"
-                  onClick={() => setDateField(opt.v)}
-                  className={`rounded-full px-2.5 py-1 transition ${
-                    dateField === opt.v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <span className="mx-2 h-4 w-px bg-slate-200" />
-            <span className="text-slate-500">排序：</span>
-            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-0.5">
-              {([
-                { v: "follow", label: "关注优先", show: hasSubscriptions },
-                { v: "first_seen_at", label: "最新发现", show: true },
-                { v: "published_at", label: "最新发布", show: true },
-                { v: "relevance", label: "相关性", show: true },
-              ] as const).filter((opt) => opt.show).map((opt) => (
-                <button
-                  key={opt.v}
-                  type="button"
-                  onClick={() => setSort(opt.v)}
-                  className={`rounded-full px-2.5 py-1 transition ${
-                    sort === opt.v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  {opt.v === "follow" && <Target className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <span className="mx-2 h-4 w-px bg-slate-200" />
-            <span className="text-slate-500">密度：</span>
-            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-0.5">
-              {([
-                { v: "compact" as DensityMode, label: "紧凑" },
-                { v: "normal" as DensityMode, label: "标准" },
-                { v: "spacious" as DensityMode, label: "宽松" },
-              ]).map((opt) => (
-                <button
-                  key={opt.v}
-                  type="button"
-                  onClick={() => setDensity(opt.v)}
-                  className={`rounded-full px-2.5 py-1 transition ${density === opt.v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <span className="mx-2 h-4 w-px bg-slate-200" />
-            <button
-              type="button"
-              onClick={() => {
-                const unread = tagFilteredItems.filter((i) => !i.isRead);
-                const pool = unread.length > 0 ? unread : tagFilteredItems;
-                if (pool.length === 0) return;
-                const picked = pool[Math.floor(Math.random() * pool.length)];
-                const k = itemKey(picked.sourceId, picked.url);
-                if (!expandedItems.has(k)) void toggleExpand(picked.sourceId, picked.url);
-                setTimeout(() => {
-                  document.querySelector(`[data-item-key="${CSS.escape(k)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 150);
-              }}
-              title="随机展开一条未读内容"
-              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+            <select
+              value={dateField}
+              onChange={(e) => setDateField(e.target.value as typeof dateField)}
+              aria-label={t("inbox.filter.date-field")}
+              className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 outline-none"
             >
-              <Dices className="mr-1 inline h-3.5 w-3.5" aria-hidden />随机发现
-            </button>
-            {expandedItems.size > 0 && (
-              <button
-                type="button"
-                onClick={() => setExpandedItems(new Set())}
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500 transition hover:bg-slate-50"
-                title="收起所有已展开的条目"
-              >
-                ▲ 收起全部 ({expandedItems.size})
+              <option value="list_published_at">{t("inbox.filter.by-published")}</option>
+              <option value="first_seen_at">{t("inbox.filter.by-first-seen")}</option>
+            </select>
+            {hasAnyFilter && (
+              <button type="button" onClick={clearFilters} className="ml-auto text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline">
+                {t("inbox.filter.clear")}
               </button>
             )}
-            <span className="ml-auto rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-500">
-              {tagFilteredItems.length !== totalCount
-                ? `显示 ${tagFilteredItems.length} / ${totalCount} 条`
-                : `${totalCount} 条`}
-            </span>
-          </div>
-        </section>
-
-        {/* 阅读进度条 */}
-        {items.length > 0 && (() => {
-          const readCount = items.filter((i) => i.isRead).length;
-          const pct = Math.round((readCount / items.length) * 100);
-          return (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 overflow-hidden rounded-full bg-slate-100" style={{ height: 4 }}>
-                <div
-                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <span className="shrink-0 text-[10px] text-slate-400">
-                已读 {readCount}/{items.length}（{pct}%）
-              </span>
-            </div>
-          );
-        })()}
-
-        {/* 智能建议条 */}
-        {suggestionBanner && !selectedCategories.has(suggestionBanner.category) && (
-          <div className="mt-3 flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
-            <Lightbulb className="h-4 w-4 shrink-0 text-sky-500" aria-hidden />
-            <p className="flex-1 text-xs text-sky-800">
-              当前有 <strong>{suggestionBanner.count}</strong> 条未读属于「{categoryDisplayLabel(suggestionBanner.category)}」（共 {suggestionBanner.total} 条未读）——
-              <button
-                type="button"
-                onClick={() => setSelectedCategories(new Set([suggestionBanner.category]))}
-                className="mx-1 font-semibold underline underline-offset-2 decoration-sky-400 hover:text-sky-900"
-              >
-                快速筛选
-              </button>
-            </p>
-            <button
-              type="button"
-              onClick={() => setSuggestionDismissed(true)}
-              className="shrink-0 text-xs text-sky-300 hover:text-sky-600"
-              aria-label="关闭建议"
-            >
-              ✕
-            </button>
-          </div>
+          </section>
         )}
-
-        {/* 筛选结果统计面板 */}
-        {displayItems.length > 0 && (() => {
-          const deptMap = new Map<string, number>();
-          for (const it of displayItems) {
-            deptMap.set(it.departmentName, (deptMap.get(it.departmentName) ?? 0) + 1);
-          }
-          const top = Array.from(deptMap.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
-          const maxVal = Math.max(1, top[0]?.[1] ?? 1);
-          return (
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-slate-100 bg-white/70 px-4 py-3">
-              <span className="shrink-0 text-[11px] font-medium text-slate-400">结果分布</span>
-              {top.map(([dept, cnt]) => (
-                <div key={dept} className="flex items-center gap-1.5 text-[11px]">
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100" style={{ width: 48 }}>
-                    <div
-                      className="h-full rounded-full bg-indigo-400 transition-all"
-                      style={{ width: `${(cnt / maxVal) * 100}%` }}
-                    />
-                  </div>
-                  <span className="max-w-[80px] truncate text-slate-600" title={dept}>{dept}</span>
-                  <span className="text-slate-400">{cnt}</span>
-                </div>
-              ))}
-              {deptMap.size > 5 && (
-                <span className="text-[11px] text-slate-400">…共 {deptMap.size} 个机构</span>
-              )}
-            </div>
-          );
-        })()}
 
         {/* 主体：左侧双面板 + 右侧列表 */}
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
           {/* 左侧双面板筛选器 */}
           <aside className="space-y-4">
-            {/* 板块A：部委→栏目→重要性（保留原始细分栏目，供精细查找） */}
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              <header className="border-b border-slate-100 px-4 py-3">
-                <h2 className="text-sm font-semibold text-slate-900">机构 / 栏目</h2>
-                <p className="mt-0.5 text-xs text-slate-500">展开机构查看原始栏目，可多选联动。</p>
-              </header>
+            {/* 板块A：机构→栏目→重要性（保留原始细分栏目，供精细查找） */}
+            <details className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between border-b border-slate-100 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">{t("inbox.side.source")}</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">{t("inbox.side.source-desc")}</p>
+                </div>
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+              </summary>
 
               {/* 重要性（快捷） */}
               <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 px-4 py-3 text-xs">
-                <span className="text-slate-500">重要性：</span>
+                <span className="text-slate-500">{t("inbox.side.importance")}</span>
                 {[
-                  { k: "核心关注", label: "核心关注", cls: "text-[var(--brand)] bg-[var(--brand-tint)]" },
-                  { k: "重点内容", label: "重点", cls: "text-[var(--brand)] bg-[var(--brand-tint)]" },
-                  { k: "中等重点", label: "中等重点", cls: "text-amber-700 bg-amber-50" },
-                  { k: "普通内容", label: "普通", cls: "text-slate-700 bg-slate-50" },
+                  { k: "核心关注", label: t("importance.label.core"), cls: "text-[var(--brand)] bg-[var(--brand-tint)]" },
+                  { k: "重点内容", label: t("importance.label.key"), cls: "text-[var(--brand)] bg-[var(--brand-tint)]" },
+                  { k: "中等重点", label: t("importance.label.mid"), cls: "text-amber-700 bg-amber-50" },
+                  { k: "普通内容", label: t("importance.label.normal"), cls: "text-slate-700 bg-slate-50" },
                 ].map((lvl) => {
                   const on = importanceLevels.has(lvl.k);
                   return (
@@ -2065,10 +1897,10 @@ export default function InboxPage() {
                 })}
               </div>
 
-              {/* 部委→栏目 */}
+              {/* 机构→栏目 */}
               <div className="max-h-[520px] overflow-auto">
                 {sourcesTree.length === 0 ? (
-                  <div className="px-4 py-6 text-xs text-slate-500">暂无数据</div>
+                  <div className="px-4 py-6 text-xs text-slate-500">{t("inbox.side.empty")}</div>
                 ) : (
                   <ul className="divide-y divide-slate-100 text-sm">
                     {sourcesTree.map((node) => {
@@ -2088,7 +1920,7 @@ export default function InboxPage() {
                                 })
                               }
                               className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 text-xs text-slate-600 hover:bg-slate-50"
-                              aria-label="展开/收起"
+                              aria-label={t("inbox.side.toggle")}
                             >
                               {expanded ? "−" : "+"}
                             </button>
@@ -2104,10 +1936,10 @@ export default function InboxPage() {
                                   <span className="truncate text-sm font-medium text-slate-800">{node.departmentName}</span>
                                   <span className="shrink-0 text-xs text-slate-500">
                                     {node.totalCount}
-                                    {node.unread > 0 ? <span className="ml-1 text-slate-400">(未读{node.unread})</span> : null}
+                                    {node.unread > 0 ? <span className="ml-1 text-slate-400">{t("inbox.side.unread-paren", { n: node.unread })}</span> : null}
                                   </span>
                                 </div>
-                                <div className="mt-0.5 text-xs text-slate-500">{node.channels.length} 个栏目</div>
+                                <div className="mt-0.5 text-xs text-slate-500">{t("inbox.side.channels", { n: node.channels.length })}</div>
                               </div>
                             </label>
                           </div>
@@ -2129,7 +1961,7 @@ export default function InboxPage() {
                                       </span>
                                       <span className="shrink-0 text-slate-500">
                                         {c.count}
-                                        {c.unread > 0 ? <span className="ml-1 text-slate-400">/{c.unread}未读</span> : null}
+                                        {c.unread > 0 ? <span className="ml-1 text-slate-400">{t("inbox.side.unread-slash", { n: c.unread })}</span> : null}
                                       </span>
                                     </label>
                                   </li>
@@ -2143,15 +1975,15 @@ export default function InboxPage() {
                   </ul>
                 )}
               </div>
-            </section>
+            </details>
 
-            {/* 板块A-2：内容类型（大类）— 把部委原始栏目归并为少量大类，适合跨部委快速筛选 */}
+            {/* 板块A-2：内容类型（大类）— 把各机构原始栏目归并为少量大类，适合跨机构快速筛选（政策台专有，创作者雷达隐藏） */}
             {groupedCounts.some((g) => g.count > 0) ? (
               <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                 <header className="border-b border-slate-100 px-4 py-3">
-                  <h2 className="text-sm font-semibold text-slate-900">内容类型</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">{t("inbox.side.content-type")}</h2>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    把不同机构里意思相近的栏目归并为大类；点击后将跨机构匹配所有对应栏目。
+                    {t("inbox.side.content-type-desc")}
                   </p>
                 </header>
                 <div className="p-3">
@@ -2185,15 +2017,18 @@ export default function InboxPage() {
             ) : null}
 
             {/* 板块B：标签分布 */}
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              <header className="border-b border-slate-100 px-4 py-3">
-                <h2 className="text-sm font-semibold text-slate-900">标签分布</h2>
-                <p className="mt-0.5 text-xs text-slate-500">命中指定标签的内容才会显示。</p>
-              </header>
+            <details className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between border-b border-slate-100 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">{t("inbox.side.tags")}</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">{t("inbox.side.tags-desc")}</p>
+                </div>
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+              </summary>
               <div className="max-h-[260px] overflow-auto p-3">
                 <div className="flex flex-wrap gap-1.5 text-xs">
                   {categoriesWithCounts.length === 0 ? (
-                    <span className="text-slate-500">暂无分类数据</span>
+                    <span className="text-slate-500">{t("inbox.side.tags-empty")}</span>
                   ) : (
                     categoriesWithCounts.map((cc) => {
                       const on = selectedCategories.has(cc.category);
@@ -2209,7 +2044,7 @@ export default function InboxPage() {
                           }`}
                           title={categoryTooltip(cc.category)}
                         >
-                          {categoryDisplayLabel(cc.category)}
+                          {categoryDisplayLabel(cc.category, language)}
                           <span className={`ml-1 ${on ? "text-slate-300" : "text-slate-400"}`}>{cc.count}</span>
                         </button>
                       );
@@ -2217,7 +2052,7 @@ export default function InboxPage() {
                   )}
                 </div>
               </div>
-            </section>
+            </details>
 
             {/* 板块C：体裁分类（手风琴） */}
             <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -2227,20 +2062,16 @@ export default function InboxPage() {
                 className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50"
               >
                 <div>
-                  <div className="text-sm font-semibold text-slate-900">体裁分类</div>
+                  <div className="text-sm font-semibold text-slate-900">{t("inbox.side.genre")}</div>
                   <div className="mt-0.5 text-xs text-slate-500">
                     {selectedGenres.size > 0
-                      ? `已选 ${selectedGenres.size} 项：${Array.from(selectedGenres).join("、")}`
-                      : "按公文体裁筛选，点击展开。"}
+                      ? t("inbox.side.genre-selected", { n: selectedGenres.size, list: Array.from(selectedGenres).join(language === "en" ? ", " : "、") })
+                      : t("inbox.side.genre-desc")}
                   </div>
                 </div>
-                <span
-                  className={`ml-3 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 text-xs text-slate-500 transition ${
-                    genreOpen ? "rotate-180" : ""
-                  }`}
-                >
-                  ▾
-                </span>
+                <ChevronDown
+                  className={`ml-3 h-4 w-4 shrink-0 text-slate-400 transition-transform ${genreOpen ? "rotate-180" : ""}`}
+                />
               </button>
               {genreOpen ? (
                 <div className="p-3">
@@ -2276,24 +2107,24 @@ export default function InboxPage() {
             {/* 当前筛选摘要 */}
             {hasAnyFilter ? (
               <section className="rounded-3xl border border-slate-200 bg-white p-4 text-xs shadow-sm">
-                <div className="mb-2 font-semibold text-slate-900">当前筛选</div>
+                <div className="mb-2 font-semibold text-slate-900">{t("inbox.side.current")}</div>
                 <ul className="space-y-1 text-slate-600">
-                  {q.trim() ? <li>搜索：{q.trim()}</li> : null}
-                  {onlyUnread ? <li>仅看未读</li> : null}
-                  {onlyStarred ? <li>仅看重点</li> : null}
-                  {selectedDepts.size > 0 ? <li>来源：{Array.from(selectedDepts).join("、")}</li> : null}
-                  {selectedChannels.size > 0 ? <li>栏目：{Array.from(selectedChannels).join("、")}</li> : null}
-                  {importanceLevels.size > 0 ? <li>重要性：{Array.from(importanceLevels).join("、")}</li> : null}
+                  {q.trim() ? <li>{t("inbox.side.cur.search")}{q.trim()}</li> : null}
+                  {onlyUnread ? <li>{t("inbox.filter.unread")}</li> : null}
+                  {onlyStarred ? <li>{t("inbox.filter.starred")}</li> : null}
+                  {selectedDepts.size > 0 ? <li>{t("inbox.side.cur.source")}{Array.from(selectedDepts).join("、")}</li> : null}
+                  {selectedChannels.size > 0 ? <li>{t("inbox.side.cur.channel")}{Array.from(selectedChannels).join("、")}</li> : null}
+                  {importanceLevels.size > 0 ? <li>{t("inbox.side.importance")} {Array.from(importanceLevels).join("、")}</li> : null}
                   {selectedCategories.size > 0 ? (
-                    <li>标签：{Array.from(selectedCategories).map((c) => categoryDisplayLabel(c)).join("、")}</li>
+                    <li>{t("inbox.side.cur.tag")}{Array.from(selectedCategories).map((c) => categoryDisplayLabel(c, language)).join("、")}</li>
                   ) : null}
                   {selectedGenres.size > 0 ? (
-                    <li>体裁：{Array.from(selectedGenres).join("、")}</li>
+                    <li>{t("inbox.side.cur.genre")}{Array.from(selectedGenres).join("、")}</li>
                   ) : null}
                   {fromDate || toDate ? (
                     <li>
-                      日期范围：{dateField === "list_published_at" ? "按发布日期" : "按发现日期"}：
-                      {fromDate || "不限"} — {toDate || "不限"}
+                      {t("inbox.side.cur.date")}{dateField === "list_published_at" ? t("inbox.filter.by-published") : t("inbox.filter.by-first-seen")}：
+                      {fromDate || t("inbox.side.cur.any")} — {toDate || t("inbox.side.cur.any")}
                     </li>
                   ) : null}
                 </ul>
@@ -2306,54 +2137,21 @@ export default function InboxPage() {
             {/* 错误 / 调试信息面板：避免"当前筛选下没有内容"这个误导性信息 */}
             {lastApiError ? (
               <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                <div className="mb-1 font-semibold">API 查询失败</div>
+                <div className="mb-1 font-semibold">{t("inbox.err.api")}</div>
                 <pre className="whitespace-pre-wrap text-xs leading-5">{lastApiError}</pre>
                 <div className="mt-2 text-xs text-rose-500">
-                  请求 URL：<code className="bg-white/60 px-1 rounded">{lastApiUrl || "(none)"}</code>
+                  {t("inbox.err.url")}<code className="bg-white/60 px-1 rounded">{lastApiUrl || "(none)"}</code>
                   &nbsp;·&nbsp;
                   <a href="/api/monitor/items?view=debug" target="_blank" rel="noreferrer" className="underline">
-                    打开 DB 诊断
+                    {t("inbox.err.diag")}
                   </a>
                 </div>
               </div>
             ) : null}
-            {hasSubscriptions && !loading && items.length > 0 && (
-              <div className="mb-3 flex items-center justify-between rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Target className="h-5 w-5 shrink-0 text-[var(--brand)]" />
-                  <div>
-                    <div className="text-sm font-medium text-slate-900">
-                      当前列表有 <span className="text-sky-600 font-semibold">{followedCount}</span> 条与你的关注相关
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {sort === "follow" ? "已按关注优先级排序，相关内容靠前展示" : "切换到「关注优先」排序，让相关内容靠前展示"}
-                    </div>
-                  </div>
-                </div>
-                {sort !== "follow" && (
-                  <button
-                    type="button"
-                    onClick={() => setSort("follow")}
-                    className="shrink-0 rounded-full bg-sky-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-sky-700"
-                  >
-                    关注优先 →
-                  </button>
-                )}
-                {sort === "follow" && !onlyFollowed && (
-                  <button
-                    type="button"
-                    onClick={() => setOnlyFollowed(true)}
-                    className="shrink-0 rounded-full border border-sky-300 bg-white px-4 py-1.5 text-xs font-medium text-sky-700 transition hover:bg-sky-50"
-                  >
-                    只看关注
-                  </button>
-                )}
-              </div>
-            )}
             {/* 已保存筛选方案 */}
             {savedPresets.length > 0 && (
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-slate-400">筛选方案：</span>
+                <span className="text-xs text-slate-400">{t("inbox.presets")}</span>
                 {savedPresets.map((p) => (
                   <div key={p.name} className="group relative flex items-center gap-0.5">
                     <button
@@ -2377,7 +2175,7 @@ export default function InboxPage() {
             {/* 标签筛选条：有已打标签的条目时显示 */}
             {tagFilterItems.length > 0 && (
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-slate-400">标签筛选：</span>
+                <span className="text-xs text-slate-400">{t("inbox.tag-filter")}</span>
                 {TAG_PRESETS.filter((t) => tagFilterItems.some((k) => (itemTags[k] ?? []).includes(t))).map((tag) => (
                   <button
                     key={tag}
@@ -2398,17 +2196,17 @@ export default function InboxPage() {
                     onClick={() => setActiveTagFilter(null)}
                     className="text-xs text-slate-400 hover:text-slate-600"
                   >
-                    × 清除
+                    {t("inbox.clear-x")}
                   </button>
                 )}
               </div>
             )}
             {!loading && items.length === 0 && !lastApiError ? (
               <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-                当前筛选返回 <strong>{lastApiReturned ?? "?"}</strong> 条 · 总数 <strong>{lastApiTotal ?? "?"}</strong>
+                {t("inbox.debug.returned")} <strong>{lastApiReturned ?? "?"}</strong> · {t("inbox.debug.total")} <strong>{lastApiTotal ?? "?"}</strong>
                 &nbsp;·&nbsp;
                 <a href="/api/monitor/items?view=debug" target="_blank" rel="noreferrer" className="underline">
-                  打开 DB 诊断
+                  {t("inbox.err.diag")}
                 </a>
                 <span className="ml-2 text-slate-400">
                   <code>{lastApiUrl || "(no request)"}</code>
@@ -2437,21 +2235,21 @@ export default function InboxPage() {
               <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
                 {region !== "all" && !hasAnyFilter ? (
                   <>
-                    <p>{region === "domestic" ? "国内" : "全球"}来源暂无内容。</p>
+                    <p>{t(region === "domestic" ? "inbox.empty.region-domestic" : "inbox.empty.region-global")}</p>
                     <p className="mt-2 text-xs text-slate-400">
-                      可先
+                      {t("inbox.empty.first")}
                       <Link href="/sources" className="mx-1 underline decoration-slate-300 underline-offset-2">
-                        添加{region === "domestic" ? "国内" : "全球"}来源
+                        {t("inbox.empty.add-source")}
                       </Link>
-                      再来查看
+                      {t("inbox.empty.then")}
                     </p>
                   </>
                 ) : (
                   <>
-                    当前筛选下没有内容。
+                    {t("inbox.empty.filtered")}
                     {hasAnyFilter && (
                       <button type="button" onClick={clearFilters} className="ml-2 underline decoration-slate-300 underline-offset-2">
-                        清空筛选
+                        {t("inbox.filter.clear")}
                       </button>
                     )}
                   </>
@@ -2505,10 +2303,10 @@ export default function InboxPage() {
                                 : "rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
                             }
                           >
-                            {group.items.length} 条
+                            {t(group.items.length === 1 ? "inbox.count-one" : "inbox.count", { n: group.items.length })}
                           </span>
                           {group.isTodayOrYesterday && !onlyOneGroup ? (
-                            <span className="text-[10px] text-emerald-600">· 最近</span>
+                            <span className="text-[11px] text-slate-500">· {t("inbox.recent")}</span>
                           ) : null}
                         </div>
                       </div>
@@ -2541,19 +2339,14 @@ export default function InboxPage() {
                             <li
                               key={key}
                               data-item-key={key}
-                              className={`relative rounded-2xl border transition overflow-hidden ${
+                              className={`group relative overflow-hidden rounded-2xl border transition ${
                                 focusedKey === key
                                   ? "border-[var(--brand)] ring-2 ring-[var(--brand-border)]"
-                                  : followInfo.isFollowed
-                                  ? "border-[var(--brand-border)] bg-[var(--brand-tint)]/40"
                                   : isExpanded
                                   ? "border-slate-300 bg-slate-50 shadow-sm"
-                                  : "border-slate-200 bg-white hover:shadow-sm"
+                                  : "border-slate-200 bg-white hover:border-slate-300"
                               }`}
                             >
-                              {followInfo.isFollowed && (
-                                <div className="absolute left-0 top-0 h-full w-0.5 bg-[var(--brand)]" />
-                              )}
                               {/* 批量选择复选框 */}
                               <div
                                 className="absolute right-1 top-1 z-10"
@@ -2564,7 +2357,7 @@ export default function InboxPage() {
                                   checked={selectedKeys.has(key)}
                                   onChange={() => toggleSelect(key)}
                                   className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-[var(--brand)]"
-                                  aria-label="选择此条目"
+                                  aria-label={t("inbox.item.select")}
                                 />
                               </div>
                               <div
@@ -2580,7 +2373,7 @@ export default function InboxPage() {
                                         showLegacyTag
                                       />
                                       {pinnedItems.has(key) && (
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">置顶</span>
+                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">{t("inbox.item.pinned")}</span>
                                       )}
                                       {subscriptionsLoaded && followInfo.isFollowed && (
                                         <SubscriptionBadge matches={followInfo.allMatches} compact />
@@ -2588,7 +2381,7 @@ export default function InboxPage() {
                                       <span className="group inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">
                                         {item.departmentName}
                                         {subscriptionsLoaded && !followInfo.isFollowed && (
-                                          <button
+                                          <button data-owner-only
                                             type="button"
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -2601,37 +2394,28 @@ export default function InboxPage() {
                                               }).catch(() => {});
                                             }}
                                             className="hidden rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 transition hover:bg-slate-200 group-hover:inline-flex"
-                                            title="关注此机构"
+                                            title={t("inbox.item.follow-source")}
                                           >
-                                            + 关注
+                                            {t("inbox.item.follow")}
                                           </button>
                                         )}
                                       </span>
                                       <span>{item.channelName}</span>
                                       <span>· {item.listPublishedAt}</span>
-                                      {item.keywordScore > 0 ? (
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                                          命中 {item.matchedKeywordCount || 0} 词
-                                          {item.signalStrength && item.signalStrength > 0 ? (
-                                            <span className="ml-1 text-slate-400">· 信号 {item.signalStrength}</span>
-                                          ) : null}
-                                        </span>
-                                      ) : null}
                                       {(() => {
                                         const today = new Date().toISOString().split("T")[0];
                                         if (item.deadlineDate) {
                                           const d = item.deadlineDate.split("T")[0];
-                                          if (d < today) return <span className="rounded-full bg-rose-50 px-2 py-0.5 font-medium text-rose-700">已截止</span>;
-                                          if (new Date(d).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000) return <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-800">截止 {d}</span>;
+                                          if (d < today) return <span className="rounded-full bg-rose-50 px-2 py-0.5 font-medium text-rose-700">{t("inbox.item.closed")}</span>;
+                                          if (new Date(d).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000) return <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-800">{t("inbox.item.deadline", { d })}</span>;
                                         }
-                                        if (item.effectiveTo && item.effectiveTo.split("T")[0] < today) return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-500">已过期</span>;
+                                        if (item.effectiveTo && item.effectiveTo.split("T")[0] < today) return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-500">{t("inbox.item.expired")}</span>;
                                         return null;
                                       })()}
-                                      <span
-                                        className={`ml-1 text-slate-400 transition ${isExpanded ? "rotate-180" : ""}`}
-                                      >
-                                        ▾
-                                      </span>
+                                      <ChevronDown
+                                        className={`ml-0.5 h-3.5 w-3.5 text-slate-400 transition ${isExpanded ? "rotate-180" : ""}`}
+                                        aria-hidden
+                                      />
                                     </div>
                                     <h3 className={`mt-1 block text-[15px] leading-snug ${item.isRead ? "font-medium text-slate-600" : "font-semibold text-slate-900"}`}>
                                       <Link
@@ -2642,56 +2426,62 @@ export default function InboxPage() {
                                         <Highlight text={item.title} query={q} />
                                       </Link>
                                       {itemNotes[key] && (
-                                        <span className="ml-1 align-middle rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500" title={itemNotes[key]}>备注</span>
+                                        <span className="ml-1 align-middle rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500" title={itemNotes[key]}>{t("inbox.item.note")}</span>
                                       )}
                                     </h3>
+                                    {/* 护城河在扫读处露出：与首页/伴侣版同一写法 */}
+                                    {pickLens(item, language) && (
+                                      <p className="mt-1 font-serif text-[15px] leading-snug text-[var(--brand)] line-clamp-2">
+                                        {pickLens(item, language)}
+                                      </p>
+                                    )}
                                     {item.categories && item.categories.length > 0 ? (
                                       <div className="mt-2 flex flex-wrap gap-1.5">
-                                        {item.categories.slice(0, 4).map((cat, idx) => (
+                                        {item.categories.slice(0, 3).map((cat, idx) => (
                                           <span
                                             key={`${cat.category}-${idx}`}
                                             className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-600"
                                             title={categoryTooltip(cat.category)}
                                           >
-                                            {categoryDisplayLabel(cat.category)}
-                                            <span className="ml-1 text-slate-400">({cat.score})</span>
+                                            {categoryDisplayLabel(cat.category, language)}
                                           </span>
                                         ))}
                                       </div>
                                     ) : null}
                                   </div>
-                                  <div className="flex shrink-0 items-start gap-1.5 sm:pl-4">
-                                    <button
+                                  <div className="flex shrink-0 items-start gap-1.5 transition-opacity sm:pl-4 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+                                    <button data-owner-only
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         toggleStarred(item.sourceId, item.url, !item.isStarred);
                                       }}
-                                      title={item.isStarred ? "取消重点" : "标为重点"}
+                                      title={item.isStarred ? t("inbox.item.unstar") : t("inbox.item.star")}
                                       className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${
                                         item.isStarred
                                           ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
                                           : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700"
                                       }`}
-                                      aria-label={item.isStarred ? "取消重点" : "标为重点"}
+                                      aria-label={item.isStarred ? t("inbox.item.unstar") : t("inbox.item.star")}
+                                      aria-pressed={!!item.isStarred}
                                     >
-                                      ★
+                                      <Star className={`h-4 w-4 ${item.isStarred ? "fill-current" : ""}`} aria-hidden />
                                     </button>
-                                    <button
+                                    <button data-owner-only
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         toggleRead(item.sourceId, item.url, !item.isRead);
                                       }}
-                                      title={item.isRead ? "标记未读" : "标记已读"}
+                                      title={item.isRead ? t("inbox.item.mark-unread") : t("inbox.item.mark-read")}
                                       className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${
                                         item.isRead
                                           ? "border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                                           : "border-slate-300 bg-white text-slate-700 hover:border-[var(--brand-border)] hover:text-[var(--brand)]"
                                       }`}
-                                      aria-label={item.isRead ? "标记未读" : "标记已读"}
+                                      aria-label={item.isRead ? t("inbox.item.mark-unread") : t("inbox.item.mark-read")}
                                     >
-                                      ✓
+                                      <Check className="h-4 w-4" aria-hidden />
                                     </button>
                                     <button
                                       type="button"
@@ -2699,15 +2489,15 @@ export default function InboxPage() {
                                         e.stopPropagation();
                                         toggleCompare(item);
                                       }}
-                                      title={isInCompare(item.sourceId, item.url) ? "移出对比" : "加入对比"}
+                                      title={isInCompare(item.sourceId, item.url) ? t("inbox.item.uncompare") : t("inbox.item.compare")}
                                       className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${
                                         isInCompare(item.sourceId, item.url)
                                           ? "border-[var(--brand-border)] bg-[var(--brand-tint)] text-[var(--brand)]"
                                           : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"
                                       }`}
-                                      aria-label={isInCompare(item.sourceId, item.url) ? "移出对比" : "加入对比"}
+                                      aria-label={isInCompare(item.sourceId, item.url) ? t("inbox.item.uncompare") : t("inbox.item.compare")}
                                     >
-                                      ⇄
+                                      <ArrowLeftRight className="h-4 w-4" aria-hidden />
                                     </button>
                                     {activeView === "signals" ? (
                                       <button
@@ -2718,9 +2508,9 @@ export default function InboxPage() {
                                           setSelectedSignalDetail(detail);
                                           setSignalDrawerOpen(true);
                                         }}
-                                        title="信号分析"
+                                        title={t("inbox.item.signal")}
                                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 transition hover:border-[var(--brand-border)] hover:text-[var(--brand)]"
-                                        aria-label="信号分析"
+                                        aria-label={t("inbox.item.signal")}
                                       >
                                         <RadioTower className="h-4 w-4" aria-hidden />
                                       </button>
@@ -2731,15 +2521,15 @@ export default function InboxPage() {
                                         e.stopPropagation();
                                         openPreview(item);
                                       }}
-                                      title="侧边预览"
+                                      title={t("inbox.item.preview")}
                                       className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${
                                         previewItem && itemKey(previewItem.sourceId, previewItem.url) === key
                                           ? "border-violet-400 bg-violet-50 text-violet-700"
                                           : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"
                                       }`}
-                                      aria-label="侧边预览"
+                                      aria-label={t("inbox.item.preview")}
                                     >
-                                      ▷
+                                      <PanelRight className="h-4 w-4" aria-hidden />
                                     </button>
                                   </div>
                                 </div>
@@ -2749,7 +2539,7 @@ export default function InboxPage() {
                               {isExpanded ? (
                                 <div className="border-t border-slate-200 bg-white/70 p-4">
                                   {isLoading && !detail ? (
-                                    <div className="text-xs text-slate-500">正在加载详情…</div>
+                                    <div className="text-xs text-slate-500">{t("inbox.x.loading-detail")}</div>
                                   ) : detail && detail.sourceId ? (
                                     <div className="space-y-4 text-sm">
                                       {/* 阅读时长估算 */}
@@ -2764,9 +2554,9 @@ export default function InboxPage() {
                                         return (
                                           <div className="flex items-center gap-1.5 text-xs text-slate-400">
                                             <Timer className="h-4 w-4" aria-hidden />
-                                            <span>约 {mins} 分钟阅读</span>
+                                            <span>{t("inbox.x.read-time", { n: mins })}</span>
                                             <span className="text-slate-300">·</span>
-                                            <span>{totalChars} 字</span>
+                                            <span>{t("inbox.x.chars", { n: totalChars })}</span>
                                           </div>
                                         );
                                       })()}
@@ -2777,7 +2567,7 @@ export default function InboxPage() {
                                           className="rounded-full bg-slate-900 px-3 py-1 text-white hover:bg-slate-800"
                                           onClick={(e) => e.stopPropagation()}
                                         >
-                                          查看详细页 →
+                                          {t("inbox.x.open-detail")}
                                         </Link>
                                         <a
                                           href={item.finalUrl || item.url}
@@ -2786,7 +2576,7 @@ export default function InboxPage() {
                                           className="rounded-full bg-sky-50 px-3 py-1 text-sky-700 hover:bg-sky-100"
                                           onClick={(e) => e.stopPropagation()}
                                         >
-                                          打开原网址 →
+                                          {t("inbox.x.open-original")}
                                         </a>
                                         {/* 一键分享 */}
                                         <button
@@ -2795,35 +2585,35 @@ export default function InboxPage() {
                                             e.stopPropagation();
                                             const text = [
                                               `【${item.title}】`,
-                                              `来源：${item.departmentName}`,
-                                              `日期：${item.listPublishedAt.slice(0, 10)}`,
-                                              `链接：${item.finalUrl || item.url}`,
+                                              `${t("inbox.side.cur.source")}${item.departmentName}`,
+                                              `${t("inbox.x.date")}${item.listPublishedAt.slice(0, 10)}`,
+                                              `${t("inbox.x.link")}${item.finalUrl || item.url}`,
                                               ``,
-                                              `via 政策雷达`,
+                                              `via ${t("site.title")}`,
                                             ].join("\n");
                                             try {
                                               await navigator.clipboard.writeText(text);
                                               const btn = e.currentTarget;
                                               const prev = btn.textContent;
-                                              btn.textContent = "✓ 已复制";
+                                              btn.textContent = t("common.copied");
                                               setTimeout(() => { btn.textContent = prev; }, 1800);
                                             } catch {}
                                           }}
                                           className="rounded-full bg-slate-100 px-3 py-1 text-slate-600 hover:bg-slate-200"
                                         >
-                                          <ClipboardList className="mr-1 inline h-3.5 w-3.5" aria-hidden />分享
+                                          <ClipboardList className="h-3.5 w-3.5" aria-hidden />{t("inbox.x.share")}
                                         </button>
                                         <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-                                          首次发现：{formatDateTimeFull(item.firstSeenAt) || "-"}
+                                          {t("inbox.x.first-seen")}{formatDateTimeFull(item.firstSeenAt) || "-"}
                                         </span>
                                         {item.effectiveFrom ? (
                                           <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                                            生效：{item.effectiveFrom}
+                                            {t("inbox.x.effective")}{item.effectiveFrom}
                                           </span>
                                         ) : null}
                                         {item.deadlineDate ? (
                                           <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-700">
-                                            截止：{item.deadlineDate}
+                                            {t("inbox.x.deadline")}{item.deadlineDate}
                                           </span>
                                         ) : null}
                                       </div>
@@ -2831,7 +2621,7 @@ export default function InboxPage() {
                                       {/* 完整分类标签 */}
                                       {item.categories && item.categories.length > 0 ? (
                                         <div>
-                                          <div className="text-xs font-medium text-slate-700">标签分类</div>
+                                          <div className="text-xs font-medium text-slate-700">{t("inbox.x.tags")}</div>
                                           <div className="mt-1 flex flex-wrap gap-1.5">
                                             {item.categories.map((cat, idx) => (
                                               <span
@@ -2839,7 +2629,7 @@ export default function InboxPage() {
                                                 className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600"
                                                 title={categoryTooltip(cat.category)}
                                               >
-                                                {categoryDisplayLabel(cat.category)}
+                                                {categoryDisplayLabel(cat.category, language)}
                                                 <span className="ml-1 text-slate-400">({cat.score})</span>
                                               </span>
                                             ))}
@@ -2850,7 +2640,7 @@ export default function InboxPage() {
                                       {/* 详情：摘要 */}
                                       {detail.summary ? (
                                         <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                                          <div className="text-xs font-medium text-slate-700">内容摘要</div>
+                                          <div className="text-xs font-medium text-slate-700">{t("inbox.x.summary")}</div>
                                           <div className="mt-1 text-xs leading-5 text-slate-700">
                                             <Highlight
                                               text={detail.summary}
@@ -2864,7 +2654,7 @@ export default function InboxPage() {
                                       {/* 详情：正文段落 */}
                                       {Array.isArray(detail.paragraphs) && detail.paragraphs.length > 0 ? (
                                         <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                                          <div className="text-xs font-medium text-slate-700">正文段落（前 5 段）</div>
+                                          <div className="text-xs font-medium text-slate-700">{t("inbox.x.paras5")}</div>
                                           <div className="mt-2 space-y-2 text-xs leading-5 text-slate-700">
                                             {detail.paragraphs.slice(0, 5).map((p: string, idx: number) => (
                                               <p key={idx} className="whitespace-pre-wrap break-words">
@@ -2876,7 +2666,7 @@ export default function InboxPage() {
                                               </p>
                                             ))}
                                             {detail.paragraphs.length > 5 ? (
-                                              <p className="text-slate-400">…（共 {detail.paragraphs.length} 段）</p>
+                                              <p className="text-slate-400">{t("inbox.x.paras-total", { n: detail.paragraphs.length })}</p>
                                             ) : null}
                                           </div>
                                         </div>
@@ -2885,7 +2675,7 @@ export default function InboxPage() {
                                       {/* 详情：附件 */}
                                       {Array.isArray(detail.attachments) && detail.attachments.length > 0 ? (
                                         <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                                          <div className="text-xs font-medium text-slate-700">附件（{detail.attachments.length}）</div>
+                                          <div className="text-xs font-medium text-slate-700">{t("inbox.x.attachments", { n: detail.attachments.length })}</div>
                                           <div className="mt-1 space-y-1 text-xs">
                                             {detail.attachments.slice(0, 5).map((att, idx) => (
                                               <a
@@ -2907,21 +2697,21 @@ export default function InboxPage() {
                                       !(Array.isArray(detail.paragraphs) && detail.paragraphs.length > 0) &&
                                       !(Array.isArray(detail.attachments) && detail.attachments.length > 0) ? (
                                         <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-3 text-xs text-slate-500">
-                                          该条目尚未抓取到正文内容，可能是刚入库的新条目。
+                                          {t("inbox.x.no-body")}
                                         </div>
                                       ) : null}
                                     </div>
                                   ) : (
                                     <div className="text-xs text-slate-500">
-                                      无法加载详情，您可以{' '}
+                                      {t("inbox.x.cant-load")}{' '}
                                       <Link
                                         href={`/items/${encodeURIComponent(item.sourceId)}?sourceId=${encodeURIComponent(item.sourceId)}&url=${encodeURIComponent(item.url)}`}
                                         className="text-sky-700 underline"
                                         onClick={(e) => e.stopPropagation()}
                                       >
-                                        打开详情页
+                                        {t("inbox.x.open-detail-page")}
                                       </Link>
-                                      ，或直接{' '}
+                                      {t("inbox.x.or")}{' '}
                                         <a
                                           href={item.finalUrl || item.url}
                                           target="_blank"
@@ -2929,9 +2719,9 @@ export default function InboxPage() {
                                           className="text-sky-700 underline"
                                           onClick={(e) => e.stopPropagation()}
                                         >
-                                          打开原网址
+                                          {t("inbox.x.open-original-plain")}
                                         </a>{' '}
-                                      查看。
+                                      {t("inbox.x.period")}
                                     </div>
                                   )}
                                 {/* 一键分享卡 + 稍后读 */}
@@ -2942,39 +2732,39 @@ export default function InboxPage() {
                                     onClick={() => {
                                       const text = [
                                         `${item.title}`,
-                                        `来源：${item.departmentName}${item.channelName ? ` · ${item.channelName}` : ""}`,
-                                        item.listPublishedAt ? `时间：${item.listPublishedAt}` : "",
-                                        `链接：${item.finalUrl || item.url}`,
+                                        `${t("inbox.side.cur.source")}${item.departmentName}${item.channelName ? ` · ${item.channelName}` : ""}`,
+                                        item.listPublishedAt ? `${t("inbox.x.date")}${item.listPublishedAt}` : "",
+                                        `${t("inbox.x.link")}${item.finalUrl || item.url}`,
                                       ].filter(Boolean).join("\n");
                                       navigator.clipboard.writeText(text).then(() => {
                                         const btn = document.getElementById(`share-${key}`);
-                                        if (btn) { btn.textContent = "已复制"; setTimeout(() => { if (btn) btn.textContent = "复制分享"; }, 2000); }
+                                        if (btn) { btn.textContent = t("common.copied"); setTimeout(() => { if (btn) btn.textContent = t("inbox.x.copy-share"); }, 2000); }
                                       });
                                     }}
                                     className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
                                   >
-                                    复制分享
+                                    {t("inbox.x.copy-share")}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => toggleReadingList(key)}
                                     className={`rounded-full border px-2.5 py-1 text-[11px] transition ${readingList.has(key) ? "border-[var(--brand-border)] bg-[var(--brand-tint)] text-[var(--brand)]" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}
                                   >
-                                    {readingList.has(key) ? "已稍后读" : "稍后读"}
+                                    {readingList.has(key) ? t("inbox.x.later-on") : t("inbox.x.later")}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => togglePinned(key)}
                                     className={`rounded-full border px-2.5 py-1 text-[11px] transition ${pinnedItems.has(key) ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}
                                   >
-                                    {pinnedItems.has(key) ? "已置顶" : "置顶"}
+                                    {pinnedItems.has(key) ? t("inbox.x.pinned-on") : t("inbox.item.pinned")}
                                   </button>
                                   <button
                                     type="button"
                                     id={`card-${key}`}
                                     onClick={async () => {
                                       const btn = document.getElementById(`card-${key}`);
-                                      if (btn) btn.textContent = "生成中…";
+                                      if (btn) btn.textContent = t("inbox.x.generating");
                                       try {
                                         const blob = await generateShareCard({
                                           title: item.title,
@@ -2984,16 +2774,16 @@ export default function InboxPage() {
                                           categories: item.categories.map((c) => c.category),
                                           url: item.finalUrl || item.url,
                                         });
-                                        downloadBlob(blob, `情报卡-${item.title.slice(0, 20)}.png`);
-                                        if (btn) btn.textContent = "已下载";
-                                        setTimeout(() => { if (btn) btn.textContent = "生成卡片"; }, 2000);
+                                        downloadBlob(blob, `radar-card-${item.title.slice(0, 20)}.png`);
+                                        if (btn) btn.textContent = t("inbox.x.downloaded");
+                                        setTimeout(() => { if (btn) btn.textContent = t("inbox.x.card"); }, 2000);
                                       } catch {
-                                        if (btn) btn.textContent = "生成卡片";
+                                        if (btn) btn.textContent = t("inbox.x.card");
                                       }
                                     }}
                                     className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
                                   >
-                                    生成卡片
+                                    {t("inbox.x.card")}
                                   </button>
                                 </div>
                                 {/* 条目自定义标签 */}
@@ -3001,7 +2791,7 @@ export default function InboxPage() {
                                   className="mt-2 flex flex-wrap items-center gap-1.5"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <span className="text-[11px] text-slate-400">标签：</span>
+                                  <span className="text-xs text-slate-500">{t("inbox.side.cur.tag")}</span>
                                   {TAG_PRESETS.map((tag) => {
                                     const currentTags = itemTags[key] ?? [];
                                     const active = currentTags.includes(tag);
@@ -3031,7 +2821,7 @@ export default function InboxPage() {
                                       onClick={() => saveItemTags(key, [])}
                                       className="text-[11px] text-slate-300 hover:text-slate-500"
                                     >
-                                      × 清除
+                                      {t("inbox.clear-x")}
                                     </button>
                                   )}
                                 </div>
@@ -3043,7 +2833,7 @@ export default function InboxPage() {
                                   <textarea
                                     value={itemNotes[key] ?? ""}
                                     onChange={(e) => saveNote(key, e.target.value)}
-                                    placeholder="添加便签（仅本地保存）…"
+                                    placeholder={t("inbox.x.note-ph")}
                                     rows={2}
                                     className="w-full resize-none rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-700 outline-none placeholder:text-slate-300 focus:border-sky-300 focus:ring-1 focus:ring-sky-200"
                                   />
@@ -3066,8 +2856,10 @@ export default function InboxPage() {
 
         {/* 无限滚动哨兵：进入视口时自动加载下一页 */}
         <div ref={scrollSentinelRef} className="h-1" aria-hidden />
+        {/* 给底部分页浮窗留位，最后一张卡不会被它常驻挡住 */}
+        <div className="h-20" aria-hidden />
         {loading && page > 1 && (
-          <div className="py-4 text-center text-xs text-slate-400">加载中…</div>
+          <div className="py-4 text-center text-xs text-slate-500">{t("insight.loading")}</div>
         )}
 
         {/* 底部常驻浮窗：分页 + 返回 + 顶部 */}
@@ -3080,13 +2872,13 @@ export default function InboxPage() {
 
         {/* 对比栏 */}
         {compareItems.length > 0 && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2.5 shadow-lg backdrop-blur sm:px-4 sm:py-3">
+          <div className="hide-when-zoomed fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2.5 shadow-lg backdrop-blur sm:px-4 sm:py-3">
             <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 <div className="flex-shrink-0">
                   <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-700 sm:gap-1.5 sm:px-3">
                     <span>⇄</span>
-                    已选 {compareItems.length}/{MAX_COMPARE_ITEMS} 条
+                    {t("inbox.cmp.selected", { n: compareItems.length, max: MAX_COMPARE_ITEMS })}
                   </span>
                 </div>
                 <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto scrollbar-hide">
@@ -3108,7 +2900,7 @@ export default function InboxPage() {
                           )
                         }
                         className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-slate-400 hover:text-rose-500"
-                        title="移除"
+                        title={t("inbox.cmp.remove")}
                       >
                         ✕
                       </button>
@@ -3121,14 +2913,14 @@ export default function InboxPage() {
                   onClick={() => setCompareItems([])}
                   className="flex-1 rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 sm:flex-none sm:py-1.5"
                 >
-                  清空
+                  {t("inbox.cmp.clear")}
                 </button>
                 <button
                   onClick={goToCompare}
                   disabled={compareItems.length < 2}
                   className="flex-[2] inline-flex min-h-[40px] items-center justify-center gap-1 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:min-h-[36px] sm:py-1.5"
                 >
-                  开始对比
+                  {t("inbox.cmp.start")}
                   {compareItems.length >= 2 && (
                     <span className="text-violet-300">→</span>
                   )}
@@ -3148,11 +2940,11 @@ export default function InboxPage() {
 
       {/* 批量选择浮动操作条 */}
       {selectedKeys.size > 0 && (
-        <div className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 sm:bottom-6">
+        <div className="hide-when-zoomed fixed bottom-20 left-1/2 z-40 -translate-x-1/2 sm:bottom-6">
           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 shadow-xl ring-1 ring-slate-900/5">
-            <span className="text-xs font-medium text-slate-700">已选 {selectedKeys.size} 条</span>
+            <span className="text-xs font-medium text-slate-700">{t("inbox.bulk.selected", { n: selectedKeys.size })}</span>
             <div className="mx-1 h-4 w-px bg-slate-200" />
-            <button
+            <button data-owner-only
               type="button"
               onClick={async () => {
                 const keys = Array.from(selectedKeys);
@@ -3165,9 +2957,9 @@ export default function InboxPage() {
               }}
               className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 transition hover:bg-sky-100"
             >
-              全部标为已读
+              {t("inbox.bulk.read")}
             </button>
-            <button
+            <button data-owner-only
               type="button"
               onClick={async () => {
                 const keys = Array.from(selectedKeys);
@@ -3180,7 +2972,7 @@ export default function InboxPage() {
               }}
               className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
             >
-              全部收藏
+              {t("inbox.bulk.star")}
             </button>
             <button
               type="button"
@@ -3190,7 +2982,7 @@ export default function InboxPage() {
               }}
               className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 transition hover:bg-sky-100"
             >
-              稍后读
+              {t("inbox.x.later")}
             </button>
             <button
               type="button"
@@ -3200,7 +2992,7 @@ export default function InboxPage() {
               }}
               className="rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-100"
             >
-              <MapPin className="mr-1 inline h-3.5 w-3.5" aria-hidden />置顶
+              <MapPin className="h-3.5 w-3.5" aria-hidden />{t("inbox.item.pinned")}
             </button>
             <button
               type="button"
@@ -3213,7 +3005,7 @@ export default function InboxPage() {
               }}
               className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
             >
-              标记"需跟进"
+              {t("inbox.bulk.followup")}
             </button>
             <div className="mx-1 h-4 w-px bg-slate-200" />
             <button
@@ -3221,7 +3013,7 @@ export default function InboxPage() {
               onClick={clearSelection}
               className="text-xs text-slate-400 hover:text-slate-600"
             >
-              × 取消
+              {t("inbox.bulk.cancel")}
             </button>
           </div>
         </div>
@@ -3245,7 +3037,7 @@ export default function InboxPage() {
                 return (
                   <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold text-slate-800">侧边预览</span>
+                      <span className="text-sm font-semibold text-slate-800">{t("inbox.item.preview")}</span>
                       {pIdx >= 0 && (
                         <span className="text-[11px] text-slate-400">{pIdx + 1}/{tagFilteredItems.length}</span>
                       )}
@@ -3256,22 +3048,22 @@ export default function InboxPage() {
                         disabled={!hasPrev}
                         onClick={() => hasPrev && void openPreview(tagFilteredItems[pIdx - 1])}
                         className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                        aria-label="上一条"
-                        title="上一条"
+                        aria-label={t("inbox.pv.prev")}
+                        title={t("inbox.pv.prev")}
                       >‹</button>
                       <button
                         type="button"
                         disabled={!hasNext}
                         onClick={() => hasNext && void openPreview(tagFilteredItems[pIdx + 1])}
                         className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                        aria-label="下一条"
-                        title="下一条"
+                        aria-label={t("inbox.pv.next")}
+                        title={t("inbox.pv.next")}
                       >›</button>
                       <button
                         type="button"
                         onClick={() => setPreviewItem(null)}
                         className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                        aria-label="关闭预览"
+                        aria-label={t("inbox.pv.close")}
                       >
                         ✕
                       </button>
@@ -3282,8 +3074,8 @@ export default function InboxPage() {
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                 <div className="flex flex-wrap gap-1.5 text-xs">
                   <ImportanceBadge level={previewItem.importanceLevel} keywordScore={previewItem.keywordScore} showLegacyTag />
-                  {!previewItem.isRead && <span className="rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">未读</span>}
-                  {previewItem.isStarred && <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">★ 重点</span>}
+                  {!previewItem.isRead && <span className="rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">{t("inbox.view.unread")}</span>}
+                  {previewItem.isStarred && <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">{t("inbox.view.starred")}</span>}
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">{previewItem.departmentName}</span>
                   <span className="text-slate-500">{previewItem.channelName}</span>
                   <span className="text-slate-400">· {previewItem.listPublishedAt}</span>
@@ -3299,21 +3091,21 @@ export default function InboxPage() {
                         className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-600"
                         title={categoryTooltip(cat.category)}
                       >
-                        {categoryDisplayLabel(cat.category)}
+                        {categoryDisplayLabel(cat.category, language)}
                       </span>
                     ))}
                   </div>
                 )}
-                {pLoading && <div className="text-xs text-slate-500 animate-pulse">正在加载…</div>}
+                {pLoading && <div className="text-xs text-slate-500 animate-pulse">{t("insight.loading")}</div>}
                 {pDetail?.summary && (
                   <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <div className="mb-1.5 text-[11px] font-medium text-slate-500">内容摘要</div>
+                    <div className="mb-1.5 text-[11px] font-medium text-slate-500">{t("inbox.x.summary")}</div>
                     <p className="text-xs leading-5 text-slate-700">{pDetail.summary}</p>
                   </div>
                 )}
                 {Array.isArray(pDetail?.paragraphs) && pDetail!.paragraphs!.length > 0 && (
                   <div>
-                    <div className="mb-1.5 text-[11px] font-medium text-slate-500">正文段落（前 3 段）</div>
+                    <div className="mb-1.5 text-[11px] font-medium text-slate-500">{t("inbox.x.paras3")}</div>
                     <div className="space-y-2">
                       {pDetail!.paragraphs!.slice(0, 3).map((p: string, idx: number) => (
                         <p key={idx} className="rounded-xl border border-slate-100 bg-white p-3 text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">
@@ -3321,7 +3113,7 @@ export default function InboxPage() {
                         </p>
                       ))}
                       {pDetail!.paragraphs!.length > 3 && (
-                        <p className="text-[11px] text-slate-400">…共 {pDetail!.paragraphs!.length} 段</p>
+                        <p className="text-[11px] text-slate-400">{t("inbox.x.paras-total", { n: pDetail!.paragraphs!.length })}</p>
                       )}
                     </div>
                   </div>
@@ -3331,7 +3123,7 @@ export default function InboxPage() {
                     href={`/items/${encodeURIComponent(previewItem.sourceId)}?sourceId=${encodeURIComponent(previewItem.sourceId)}&url=${encodeURIComponent(previewItem.url)}`}
                     className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
                   >
-                    查看详细页 →
+                    {t("inbox.x.open-detail")}
                   </Link>
                   <a
                     href={previewItem.finalUrl || previewItem.url}
@@ -3339,7 +3131,7 @@ export default function InboxPage() {
                     rel="noopener noreferrer"
                     className="rounded-full border border-slate-300 px-4 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
                   >
-                    原始链接 ↗
+                    {t("inbox.x.original-link")}
                   </a>
                 </div>
               </div>
@@ -3349,5 +3141,32 @@ export default function InboxPage() {
       })()}
       <ScrollToTop />
     </main>
+  );
+}
+
+function MenuItem({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center rounded px-2.5 py-1.5 text-left text-sm text-slate-700 transition hover:bg-slate-100"
+    >
+      {children}
+    </button>
+  );
+}
+
+function FilterToggle({ on, onChange, children }: { on: boolean; onChange: (v: boolean) => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!on)}
+      aria-pressed={on}
+      className={`inline-flex h-8 items-center rounded-md border px-2.5 transition ${
+        on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

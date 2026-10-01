@@ -689,7 +689,7 @@ function summarize(context: ChatContext): string {
     return [
       `**《${context.title}》**`,
       "",
-      `⚠️ 当前文档尚未提取到正文段落。`,
+      `⚠ 当前文档尚未提取到正文段落。`,
       "",
       `建议：请先在内容详情页点击「重新抓取正文」。如果文档源为图片/扫描件，需要先做 OCR。`,
     ].join("\n");

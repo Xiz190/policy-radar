@@ -2534,7 +2534,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     channelGroup: "政务公开",
     channelName: "财政预决算",
     displayName: "北京经信局·财政预决算",
-    listUrl: "https://jxj.beijing.gov.cn/zwgk/czjs/",
+    listUrl: "https://jxj.beijing.gov.cn/zwgk/czyjs/",
     startDate: MONITOR_START_DATE,
     maxItems: MONITOR_MAX_ITEMS,
   },

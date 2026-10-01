@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { networkInterfaces } from "os";
 
 // —— 安全响应头配置
 const isDev = process.env.NODE_ENV === "development";
@@ -13,7 +14,7 @@ const cspHeader = `
   base-uri 'self';
   form-action 'self';
   frame-ancestors 'none';
-  upgrade-insecure-requests;
+  ${isDev ? "" : "upgrade-insecure-requests;"}
   connect-src 'self';
 `.replace(/\s{2,}/g, " ").trim();
 
@@ -73,7 +74,14 @@ const corsHeaders = [
 // —— 注意：Next.js 16 只接受纯 host（不加协议、不加端口）
 function resolveAllowedDevOrigins(): string[] {
   const raw = process.env.NEXT_ALLOWED_DEV_ORIGINS;
-  if (!raw) return [];
+  // 未配置时：dev 下自动放行本机局域网 IPv4（手机/同网设备用 Network 地址访问）
+  if (!raw) {
+    if (!isDev) return [];
+    return Object.values(networkInterfaces())
+      .flat()
+      .filter((n) => n && n.family === "IPv4" && !n.internal)
+      .map((n) => n!.address);
+  }
   if (raw.trim() === "*") {
     // 宽松模式：加入常见的局域网/本地 host
     return [

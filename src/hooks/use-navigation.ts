@@ -6,6 +6,7 @@ import type { TranslationKey } from "@/lib/i18n";
 import {
   Bell, BookOpen, ChartColumn, ClipboardList, FolderTree, House, Inbox, Mail, Pin, RadioTower, Rocket, Save, Settings, TrendingUp, type LucideIcon,
 } from "lucide-react";
+import { isOwnerOnlyPage } from "@/lib/owner-only";
 
 type NavItem = {
   href: string;
@@ -66,6 +67,12 @@ function isNavActiveFn(href: string, pathname: string) {
 
 export function isMenuDivider(entry: MenuEntry): entry is MenuDivider {
   return "type" in entry && entry.type === "divider";
+}
+
+/** 演示站访客看到的设置菜单：去掉作者专属页（清单见 lib/owner-only.ts），再去掉因此变空的分组标题 */
+export function visitorSettingsMenu(menu: MenuEntry[]): MenuEntry[] {
+  const kept = menu.filter((e) => isMenuDivider(e) || !isOwnerOnlyPage(e.href));
+  return kept.filter((e, i) => !isMenuDivider(e) || (i + 1 < kept.length && !isMenuDivider(kept[i + 1])));
 }
 
 export function computeActiveNavLabel(pathname: string): string {

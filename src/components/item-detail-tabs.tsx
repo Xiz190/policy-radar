@@ -12,13 +12,10 @@ import { RecaptureButton } from "@/components/recapture-button";
 import { RecomputePriorityButton } from "@/components/recompute-priority-button";
 import { BackButton } from "@/components/back-button";
 import { QuickActionBar } from "@/components/quick-action-bar";
-import { StructuredSummary } from "@/components/structured-summary";
 import { KeywordBreakdown } from "@/components/keyword-breakdown";
 import type { KeywordDetailItem } from "@/components/keyword-breakdown";
 import { RelatedItems } from "@/components/related-items";
 import type { RelatedItemsData } from "@/components/related-items";
-import { ItemHistory } from "@/components/item-history";
-import type { PolicyEvolutionData } from "@/components/item-history";
 import { normalizePriorityLevel, getPriorityMeta, getImportanceBadgeMeta } from "@/lib/monitor/priority-levels";
 import { categoryDisplayLabel, categoryTooltip, pickSmartSummary, buildKeywordBreakdown, getCategoryStyle } from "@/lib/monitor/content-meta";
 import { getSourceCapability } from "@/lib/monitor/source-capability";
@@ -36,7 +33,6 @@ import {
   type ResearchTag,
 } from "@/lib/personal-research";
 import { computeAllRoleAnalyses } from "@/lib/monitor/role-analysis";
-import type { StructuredSummaryData } from "@/components/structured-summary";
 
 type CategoryType = {
   category: string;
@@ -80,8 +76,6 @@ type RelatedItem = {
 };
 
 type ItemDetailTabsProps = {
-  structuredSummary: StructuredSummaryData;
-  policyEvolution: PolicyEvolutionData;
   relatedPoliciesData: RelatedItemsData;
   item: {
     sourceId: string;
@@ -435,8 +429,6 @@ function PersonalResearchCard({
 }
 
 export function ItemDetailTabs({
-  structuredSummary,
-  policyEvolution,
   relatedPoliciesData,
   item,
   docs,
@@ -538,9 +530,10 @@ export function ItemDetailTabs({
             未读
           </span>
         ) : null}
-        {item.attachments.length > 0 ? (
+        {/* attachments 里混有普通链接（非文档非图片），只按真正的文档与图片计数，否则会出现「附件 12（文档 0 / 图片 0）」 */}
+        {docs.length + images.length > 0 ? (
           <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
-            附件 {item.attachments.length}（文档 {docs.length} / 图片 {images.length}）
+            附件 {docs.length + images.length}（文档 {docs.length} / 图片 {images.length}）
           </span>
         ) : null}
       </div>
@@ -580,7 +573,8 @@ export function ItemDetailTabs({
       <h1 className="mt-4 text-2xl font-semibold tracking-tight lg:text-3xl">
         <ExpandableText text={item.title} maxLength={120} />
       </h1>
-      {item.pageTitle && item.pageTitle !== item.title ? (
+      {/* 网页标题多半只是正文标题 + 站名（如「… – 量子位」），包含正文标题时不再重复显示 */}
+      {item.pageTitle && !item.pageTitle.includes(item.title.trim()) ? (
         <div className="mt-1 text-sm text-slate-500">
           页面标题：<ExpandableText text={item.pageTitle} maxLength={120} />
         </div>
@@ -818,7 +812,7 @@ export function ItemDetailTabs({
                 </p>
                 {unreliable && (
                   <p className="mt-2 text-xs leading-6 text-amber-800/80">
-                    ⚠️ 提示：此类动态站点的原文链接可能已失效或需多次跳转，打开后若为 404 属来源侧变动，非本站数据错误。
+                    ⚠ 提示：此类动态站点的原文链接可能已失效或需多次跳转，打开后若为 404 属来源侧变动，非本站数据错误。
                   </p>
                 )}
                 {originUrl ? (
@@ -1009,8 +1003,6 @@ export function ItemDetailTabs({
           </section>
         ) : null}
 
-        <StructuredSummary data={structuredSummary} />
-
         <PersonalResearchCard
           sourceId={item.sourceId}
           url={item.url}
@@ -1078,7 +1070,7 @@ export function ItemDetailTabs({
           >
             <div className="flex items-center gap-2">
               <span className="font-medium text-slate-900">更多分析</span>
-              <span className="text-xs text-slate-500">评分说明 · 角色视角 · 政策演进 · 全量关键词</span>
+              <span className="text-xs text-slate-500">评分说明 · 角色视角 · 全量关键词</span>
             </div>
             <span className="text-slate-400">{showMoreAnalysis ? "收起" : "展开"}</span>
           </button>
@@ -1327,8 +1319,6 @@ export function ItemDetailTabs({
                   })}
                 </div>
               </section>
-
-              <ItemHistory data={policyEvolution} />
 
               {item.matchedKeywords.length > 0 && (
                 <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">

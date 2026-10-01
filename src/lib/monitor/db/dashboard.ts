@@ -3,15 +3,21 @@ import { getPgPool } from "@/lib/db";
 export async function getDepartmentUpdateStats(daysAgo: number = 7) {
   const pool = getPgPool();
   const since = new Date(Date.now() - daysAgo * 24 * 3600 * 1000).toISOString();
-  const today = new Date().toISOString().split("T")[0];
+  // 日期键统一按上海时区切天、并在 SQL 里格式化成 YYYY-MM-DD 字符串。
+  // 原先返回 ::date，pg 驱动会转成 JS Date，String() 后是 "Wed Sep 30 2026 ..."，
+  // 永远对不上下面的日期键 → 每日序列全 0、各机构「今日」全 0、看板「本周新增 0」。
+  const shanghaiDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(d);
+  const today = shanghaiDay(new Date());
 
   const dailyRes = await pool.query<{ department_name: string; date: string; count: string }>(
-    `select s.department_name, date_trunc('day', i.first_seen_at)::date as date, count(*) as count
+    `select s.department_name,
+            to_char(i.first_seen_at at time zone 'Asia/Shanghai', 'YYYY-MM-DD') as date,
+            count(*) as count
      from monitor_items i
      join monitor_sources s on s.id = i.source_id and s.enabled = true
      where i.first_seen_at >= $1::timestamptz and s.department_name is not null
-     group by s.department_name, date_trunc('day', i.first_seen_at)::date
-     order by s.department_name, date`,
+     group by s.department_name, 2
+     order by s.department_name, 2`,
     [since],
   );
 
@@ -34,11 +40,9 @@ export async function getDepartmentUpdateStats(daysAgo: number = 7) {
     }
   }
 
-  const dates = Array.from({ length: daysAgo }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (daysAgo - 1 - i));
-    return d.toISOString().split("T")[0];
-  });
+  const dates = Array.from({ length: daysAgo }, (_, i) =>
+    shanghaiDay(new Date(Date.now() - (daysAgo - 1 - i) * 24 * 3600 * 1000)),
+  );
 
   const result: Array<{ departmentName: string; total: number; todayCount: number; series: Array<{ date: string; count: number }> }> = [];
   for (const [dept, series] of deptSeries) {
@@ -100,15 +104,15 @@ export async function getSignalTrend(daysAgo: number = 30) {
     starred: string;
     important: string;
   }>(
-    `select date_trunc('day', i.first_seen_at)::date as date,
+    `select to_char(i.first_seen_at at time zone 'Asia/Shanghai', 'YYYY-MM-DD') as date,
             count(*) as total,
             sum(case when i.is_starred then 1 else 0 end) as starred,
             sum(case when i.importance_level in ('重点内容', '核心关注') then 1 else 0 end) as important
      from monitor_items i
      where i.first_seen_at >= $1::timestamptz
        and exists (select 1 from monitor_sources s where s.id = i.source_id and s.enabled)
-     group by date_trunc('day', i.first_seen_at)::date
-     order by date`,
+     group by 1
+     order by 1`,
     [since],
   );
   return res.rows.map((row) => ({
@@ -200,10 +204,15 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
   // 同机构最多 2 条，避免头条被单个机构的一批发布刷屏
   const perSource = new Map<string, number>();
   const topHighlights: Array<{ title: string; url: string; sourceId: string; lens: string; source: string; date: string; score: number; level: string }> = [];
+  // 同一篇公文会被多个网站转载，标题完全相同；头条里只留一份
+  const seenTitles = new Set<string>();
   for (const r of highlightsRes.rows) {
+    const titleKey = (r.title ?? "").trim();
+    if (seenTitles.has(titleKey)) continue;
     const src = r.department_name ?? "";
     const used = perSource.get(src) ?? 0;
     if (used >= 2) continue;
+    seenTitles.add(titleKey);
     perSource.set(src, used + 1);
     topHighlights.push({
       title: r.title,
@@ -248,12 +257,12 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
   const HEAT_WINDOW_DAYS = 170;
   const heatSince = new Date(Date.now() - HEAT_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
   const heatRes = await pool.query<{ date: string; count: string }>(
-    `select to_char(date_trunc('day', first_seen_at), 'YYYY-MM-DD') as date, count(*)::text as count
+    `select to_char(first_seen_at at time zone 'Asia/Shanghai', 'YYYY-MM-DD') as date, count(*)::text as count
      from monitor_items
      where first_seen_at >= $1::timestamptz
        and source_id in (select id from monitor_sources where enabled = true)
-     group by date_trunc('day', first_seen_at)
-     order by date_trunc('day', first_seen_at)`,
+     group by 1
+     order by 1`,
     [heatSince],
   );
   const heatmapDaily = heatRes.rows.map((r) => ({ date: r.date, count: Number(r.count) }));

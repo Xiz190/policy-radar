@@ -119,7 +119,8 @@ export type MonitorRunRecord = {
   id: string;
   startedAt: string;
   finishedAt?: string;
-  status: "running" | "success" | "error";
+  // stale = 僵尸任务：进程中途退出，被下一次运行标记作废（见 runner.ts）
+  status: "running" | "success" | "error" | "stale";
   errorMessage?: string;
   results?: MonitorSourceRunResult[];
 };

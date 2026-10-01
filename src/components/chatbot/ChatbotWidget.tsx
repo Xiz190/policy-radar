@@ -429,16 +429,27 @@ export function ChatbotWidget() {
   const currentSizeLabel = SIZE_PRESETS[sizeMode].label;
 
   // 动态样式：根据是否被拖动过位置决定定位方式
+  // 三档尺寸是上限，不是硬尺寸：窗口不能比可视区域大。
+  // 之前写死像素，「中」460×680、「大」820×760 在笔记本浏览器（可视高度常不到 760）里顶部伸出屏幕，
+  // 标题栏和按钮都看不到；手机上「中」左边伸出 92px。拖动过的位置也夹在屏幕内，免得拖出去找不回来。
+  const boxW = `min(${width}px, calc(100vw - 2rem))`;
+  const boxH = `min(${height}px, calc(100dvh - 3rem))`;
   const chatContainerStyle: React.CSSProperties = position
-    ? { position: "fixed", left: `${position.left}px`, top: `${position.top}px`, width: `${width}px`, height: `${height}px` }
-    : { width: `${width}px`, height: `${height}px` };
+    ? {
+        position: "fixed",
+        left: `clamp(0.5rem, ${position.left}px, calc(100vw - ${boxW} - 0.5rem))`,
+        top: `clamp(0.5rem, ${position.top}px, calc(100dvh - ${boxH} - 0.5rem))`,
+        width: boxW,
+        height: boxH,
+      }
+    : { width: boxW, height: boxH };
 
   return (
     <>
       {/* 浮动按钮（右下角） */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/25 transition hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-0.5 sm:bottom-6 ${
+        className={`hide-when-zoomed fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-[var(--brand)] px-4 py-2.5 text-sm font-medium text-white shadow-lg transition hover:opacity-90 sm:bottom-6 ${
           isOpen ? "opacity-0 pointer-events-none" : ""
         }`}
       >
@@ -452,13 +463,13 @@ export function ChatbotWidget() {
       {/* 聊天窗口 - 支持拖动移动 */}
       {isOpen ? (
         <div
-          className={`chatbot-container ${position ? "" : "fixed bottom-6 right-6"} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ${isDragging ? "cursor-grabbing" : ""}`}
+          className={`chatbot-container ${position ? "" : "fixed bottom-4 right-4 sm:bottom-6 sm:right-6"} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ${isDragging ? "cursor-grabbing" : ""}`}
           style={chatContainerStyle}
         >
           {/* 头部（可拖动移动 + 对话管理） */}
           <div
             onMouseDown={handleDragStart}
-            className="flex cursor-grab items-center justify-between bg-gradient-to-br from-amber-500 to-orange-600 px-4 py-2.5 text-white active:cursor-grabbing"
+            className="flex cursor-grab items-center justify-between bg-[var(--brand)] px-4 py-2.5 text-white active:cursor-grabbing"
           >
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-lg">
@@ -466,7 +477,7 @@ export function ChatbotWidget() {
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold truncate">{activeConv?.title || "政策分析助手"}</div>
-                <div className="text-xs text-amber-50">{conversations.length} 条对话 · 拖动头部移动</div>
+                <div className="text-xs text-white/75">{conversations.length} 条对话 · 拖动头部移动</div>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -474,7 +485,7 @@ export function ChatbotWidget() {
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 title="查看/管理对话历史"
-                className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition ${showSidebar ? "bg-white text-amber-600" : "bg-white/20 hover:bg-white/30"}`}
+                className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition ${showSidebar ? "bg-white text-[var(--brand)]" : "bg-white/20 hover:bg-white/30"}`}
               >
                 <FolderOpen className="mr-1 inline h-3.5 w-3.5" aria-hidden />{conversations.length}
               </button>
@@ -527,7 +538,7 @@ export function ChatbotWidget() {
                 <div className="flex gap-1">
                   <button
                     onClick={handleNewConversation}
-                    className="rounded-full bg-amber-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-amber-600"
+                    className="rounded-full bg-[var(--brand)] px-2 py-1 text-xs font-medium text-white transition hover:opacity-90"
                   >
                     ＋ 新建
                   </button>
@@ -549,8 +560,8 @@ export function ChatbotWidget() {
                       onClick={() => handleSwitchConversation(conv.id)}
                       className={`group flex cursor-pointer items-start gap-2 rounded-xl p-2 text-left transition ${
                         conv.id === activeConversationId
-                          ? "bg-amber-100 ring-1 ring-amber-300"
-                          : "bg-white hover:bg-amber-50 ring-1 ring-slate-100"
+                          ? "bg-[var(--brand-tint)] ring-1 ring-[var(--brand-border)]"
+                          : "bg-white hover:bg-[var(--brand-tint)] ring-1 ring-slate-100"
                       }`}
                     >
                       <div className="shrink-0 text-base">
@@ -605,7 +616,7 @@ export function ChatbotWidget() {
                 <div
                   className={`inline-block max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                     msg.role === "user"
-                      ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white"
+                      ? "bg-[var(--brand)] text-white"
                       : "border border-slate-200 bg-white text-slate-700"
                   }`}
                 >
@@ -623,7 +634,7 @@ export function ChatbotWidget() {
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {item.signals?.map((s, i) => (
-                            <span key={i} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                            <span key={i} className="rounded-full bg-[var(--brand-tint)] px-2 py-0.5 text-xs text-[var(--brand)]">
                               {s}
                             </span>
                           ))}
@@ -732,7 +743,7 @@ export function ChatbotWidget() {
                   <button
                     key={idx}
                     onClick={() => handleSuggestion(q)}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-[var(--brand-border)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)]"
                   >
                     {q}
                   </button>
@@ -755,7 +766,7 @@ export function ChatbotWidget() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
-                className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
+                className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-[var(--brand-border)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] disabled:opacity-50"
                 title="上传文件（PDF/Word/图片）"
               >
                 <Paperclip className="h-4 w-4" aria-hidden />
@@ -772,14 +783,14 @@ export function ChatbotWidget() {
                   }}
                   placeholder="输入你的问题，或上传文件..."
                   rows={1}
-                  className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:border-[var(--brand-border)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-tint)]"
                   style={{ minHeight: "42px", maxHeight: "120px" }}
                 />
               </div>
               <button
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="shrink-0 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="shrink-0 rounded-full bg-[var(--brand)] px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 发送
               </button>

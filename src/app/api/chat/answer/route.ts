@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getPgPool } from "@/lib/db";
+import { consumeDemoLlmQuota } from "@/lib/demo-quota";
 
 export const dynamic = "force-dynamic";
 
@@ -152,8 +154,15 @@ function ruleBasedAnswer(question: string, items: SearchItemHit[]): string {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const question = (body.question || "").toString().trim();
-    const items: SearchItemHit[] = Array.isArray(body.items) ? body.items : [];
+    // items 由浏览器传上来：限长，免得被塞超长内容刷 token
+    const question = (body.question || "").toString().trim().slice(0, 500);
+    const items: SearchItemHit[] = (Array.isArray(body.items) ? body.items : [])
+      .slice(0, 5)
+      .map((it: SearchItemHit) => ({
+        ...it,
+        title: String(it.title ?? "").slice(0, 200),
+        hitParagraphs: (it.hitParagraphs || []).slice(0, 3).map((p) => ({ idx: p.idx, snippet: String(p.snippet ?? "").slice(0, 400) })),
+      }));
     const lang: "zh" | "en" = body.lang === "en" ? "en" : "zh";
 
     if (!question || question.length < 2) {
@@ -165,7 +174,13 @@ export async function POST(request: Request) {
     let source: "llm" | "rule" = "rule";
     let error: string | undefined;
 
-    if (llmEnabled && items.length > 0) {
+    // 演示站访客有全站每日限额；超了就用规则模式回答，不报错
+    const quotaOk = llmEnabled && items.length > 0 ? await consumeDemoLlmQuota(request, getPgPool()) : true;
+
+    if (llmEnabled && items.length > 0 && !quotaOk) {
+      answer = ruleBasedAnswer(question, items);
+      error = "演示站今天的 AI 额度已用完，已切换为规则模式回答，明天再试。";
+    } else if (llmEnabled && items.length > 0) {
       try {
         answer = await callLlm(question, items, lang);
         source = "llm";

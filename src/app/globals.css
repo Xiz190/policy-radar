@@ -3,13 +3,26 @@
 /* ══════════════════════════════════════════════════════
    RADAR · 编辑台设计系统
    一套系统，两个实例 —— 只有 --brand 按领域不同：
-   政策雷达 = 冷钢蓝 · 政策雷达 = 冷钢蓝
+   创作者雷达 = 暖赭石 · 政策雷达 = 冷钢蓝
    衬线标题 + 无衬线正文 + 等宽数据 + 细线分隔 + 近单色
    ══════════════════════════════════════════════════════ */
 :root {
   --brand: #1f5e7e;            /* 政策雷达 · 冷钢蓝 */
   --brand-tint: #e9f0f4;       /* 极淡强调底 */
   --brand-border: #c9dbe4;     /* 强调描边 */
+
+  /* 从 --brand 推导的单色阶（被 @theme 里的 sky/blue/violet/indigo/purple/orange 引用） */
+  --brand-50:  color-mix(in oklab, var(--brand) 5%, white);
+  --brand-100: color-mix(in oklab, var(--brand) 10%, white);
+  --brand-200: color-mix(in oklab, var(--brand) 22%, white);
+  --brand-300: color-mix(in oklab, var(--brand) 40%, white);
+  --brand-400: color-mix(in oklab, var(--brand) 65%, white);
+  --brand-500: color-mix(in oklab, var(--brand) 85%, white);
+  --brand-600: var(--brand);
+  --brand-700: color-mix(in oklab, var(--brand) 85%, black);
+  --brand-800: color-mix(in oklab, var(--brand) 70%, black);
+  --brand-900: color-mix(in oklab, var(--brand) 55%, black);
+  --brand-950: color-mix(in oklab, var(--brand) 40%, black);
 
   --background: #f7f6f3;       /* 暖纸底 */
   --foreground: #1b1a17;       /* 墨色 */
@@ -58,6 +71,51 @@
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-newsreader), Georgia, "Songti SC", serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+/* 编辑台色阶：在调色板层面收拢颜色，而不是逐个类名打补丁。
+   ① slate（全站 3000+ 处的中性色）→ 暖灰：50/100/200/500/900 正是 --background/--muted/--border/--muted-foreground/--foreground
+   ② sky / blue / violet / indigo / purple / orange（装饰性强调色）→ 从 --brand 推导的单色阶，
+      政策雷达换 --brand 即自动变钢蓝
+   ③ red / rose / emerald / amber 是语义色（出错/成功/星标），保留 */
+@theme inline {
+  --color-slate-50:  #f7f6f3;
+  --color-slate-100: #efede8;
+  --color-slate-200: #e4e1d9;
+  --color-slate-300: #cdc9be;
+  --color-slate-400: #8f897d;
+  --color-slate-500: #6b675f;
+  --color-slate-600: #57534b;
+  --color-slate-700: #403d37;
+  --color-slate-800: #2b2925;
+  --color-slate-900: #1b1a17;
+  --color-slate-950: #11100e;
+
+
+  --color-sky-50: var(--brand-50);     --color-sky-100: var(--brand-100);   --color-sky-200: var(--brand-200);
+  --color-sky-300: var(--brand-300);   --color-sky-400: var(--brand-400);   --color-sky-500: var(--brand-500);
+  --color-sky-600: var(--brand-600);   --color-sky-700: var(--brand-700);   --color-sky-800: var(--brand-800);
+  --color-sky-900: var(--brand-900);   --color-sky-950: var(--brand-950);
+  --color-blue-50: var(--brand-50);    --color-blue-100: var(--brand-100);  --color-blue-200: var(--brand-200);
+  --color-blue-300: var(--brand-300);  --color-blue-400: var(--brand-400);  --color-blue-500: var(--brand-500);
+  --color-blue-600: var(--brand-600);  --color-blue-700: var(--brand-700);  --color-blue-800: var(--brand-800);
+  --color-blue-900: var(--brand-900);  --color-blue-950: var(--brand-950);
+  --color-violet-50: var(--brand-50);  --color-violet-100: var(--brand-100); --color-violet-200: var(--brand-200);
+  --color-violet-300: var(--brand-300); --color-violet-400: var(--brand-400); --color-violet-500: var(--brand-500);
+  --color-violet-600: var(--brand-600); --color-violet-700: var(--brand-700); --color-violet-800: var(--brand-800);
+  --color-violet-900: var(--brand-900); --color-violet-950: var(--brand-950);
+  --color-indigo-50: var(--brand-50);  --color-indigo-100: var(--brand-100); --color-indigo-200: var(--brand-200);
+  --color-indigo-300: var(--brand-300); --color-indigo-400: var(--brand-400); --color-indigo-500: var(--brand-500);
+  --color-indigo-600: var(--brand-600); --color-indigo-700: var(--brand-700); --color-indigo-800: var(--brand-800);
+  --color-indigo-900: var(--brand-900); --color-indigo-950: var(--brand-950);
+  --color-purple-50: var(--brand-50);  --color-purple-100: var(--brand-100); --color-purple-200: var(--brand-200);
+  --color-purple-300: var(--brand-300); --color-purple-400: var(--brand-400); --color-purple-500: var(--brand-500);
+  --color-purple-600: var(--brand-600); --color-purple-700: var(--brand-700); --color-purple-800: var(--brand-800);
+  --color-purple-900: var(--brand-900); --color-purple-950: var(--brand-950);
+  --color-orange-50: var(--brand-50);  --color-orange-100: var(--brand-100); --color-orange-200: var(--brand-200);
+  --color-orange-300: var(--brand-300); --color-orange-400: var(--brand-400); --color-orange-500: var(--brand-500);
+  --color-orange-600: var(--brand-600); --color-orange-700: var(--brand-700); --color-orange-800: var(--brand-800);
+  --color-orange-900: var(--brand-900); --color-orange-950: var(--brand-950);
 }
 
 body {
@@ -331,4 +389,16 @@ html.dark[data-contrast="high"] .border-slate-300 {
   a { color: inherit !important; text-decoration: none !important; }
   .shadow-sm, .shadow-lg, .shadow-xl { box-shadow: none !important; }
   section, article, .print-break-avoid { page-break-inside: avoid; }
+}
+
+/* 手机双指放大期间隐藏固定在底部的栏和浮动按钮（见 components/viewport-zoom-watcher.tsx） */
+html[data-zoomed] .hide-when-zoomed {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 演示站访客：作者专用按钮变灰（点击拦截与说明在 components/demo-mode-gate.tsx） */
+html[data-visitor] [data-owner-only] {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

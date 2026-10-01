@@ -89,12 +89,12 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+      className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-medium transition sm:gap-2 sm:px-4 sm:text-sm ${
         active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
       }`}
     >
-      <span><Icon className="h-4 w-4" aria-hidden /></span>
-      <span>{label}</span>
+      <span className="shrink-0"><Icon className="h-4 w-4" aria-hidden /></span>
+      <span className="truncate">{label}</span>
       {count !== undefined && (
         <span
           className={`rounded-full px-2 py-0.5 text-[11px] ${
@@ -462,14 +462,14 @@ export default function SubscribePage() {
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-8">
-        <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">关注设置</h1>
             <p className="mt-2 text-sm text-slate-600">
               配置你关心的来源、领域和关键词，获取更精准的内容推送
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -510,7 +510,7 @@ export default function SubscribePage() {
             >
               ↓ OPML
             </button>
-            <label className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50">
+            <label data-owner-only className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50">
               ↑ 导入 OPML
               <input
                 type="file"
@@ -550,7 +550,7 @@ export default function SubscribePage() {
                 }}
               />
             </label>
-            <label className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50">
+            <label data-owner-only className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50">
               ↑ 导入关注
               <input
                 type="file"
@@ -662,7 +662,7 @@ export default function SubscribePage() {
                   />
                 </div>
                 <div className="flex items-end">
-                  <button
+                  <button data-owner-only
                     onClick={handleAddDepartment}
                     className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
                   >
@@ -733,7 +733,7 @@ export default function SubscribePage() {
                             <span className="text-slate-900">{sub.targetName || sub.target}</span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button
+                            <button data-owner-only
                               onClick={() => handleToggleSubscription(sub.id)}
                               className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                                 sub.enabled
@@ -748,7 +748,7 @@ export default function SubscribePage() {
                             {formatDate(sub.createdAt)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button
+                            <button data-owner-only
                               onClick={() => handleDeleteSubscription(sub.id)}
                               className="rounded-lg px-3 py-1 text-xs text-rose-600 transition hover:bg-rose-50"
                             >
@@ -857,7 +857,7 @@ export default function SubscribePage() {
                   />
                 </div>
                 <div className="flex items-end">
-                  <button
+                  <button data-owner-only
                     onClick={handleAddKeyword}
                     className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
                   >
@@ -919,7 +919,7 @@ export default function SubscribePage() {
                             <span className="text-slate-900">{sub.targetName || sub.target}</span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button
+                            <button data-owner-only
                               onClick={() => handleToggleSubscription(sub.id)}
                               className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                                 sub.enabled
@@ -934,7 +934,7 @@ export default function SubscribePage() {
                             {formatDate(sub.createdAt)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button
+                            <button data-owner-only
                               onClick={() => handleDeleteSubscription(sub.id)}
                               className="rounded-lg px-3 py-1 text-xs text-rose-600 transition hover:bg-rose-50"
                             >
@@ -976,7 +976,7 @@ export default function SubscribePage() {
                             <span className="text-slate-900">{sub.targetName || sub.target}</span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button
+                            <button data-owner-only
                               onClick={() => handleToggleSubscription(sub.id)}
                               className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                                 sub.enabled
@@ -991,7 +991,7 @@ export default function SubscribePage() {
                             {formatDate(sub.createdAt)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button
+                            <button data-owner-only
                               onClick={() => handleDeleteSubscription(sub.id)}
                               className="rounded-lg px-3 py-1 text-xs text-rose-600 transition hover:bg-rose-50"
                             >

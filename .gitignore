@@ -39,3 +39,8 @@ storybook-static
 
 # 备份密钥文件一律不入库
 .env*.bak*
+
+# 本机 AI 开发工具配置（Neon MCP / agent skills），不进仓库
+.mcp.json
+.claude/
+skills-lock.json

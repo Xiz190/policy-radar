@@ -27,7 +27,7 @@ export function ImportanceBadge({
     >
       <span>{meta.label}</span>
       {showLegacyTag && isLegacy ? (
-        <span className="ml-1 text-[9px] text-rose-600">(旧)</span>
+        <span className="ml-1 text-[11px] text-rose-600">(旧)</span>
       ) : null}
     </span>
   );

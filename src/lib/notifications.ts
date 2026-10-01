@@ -238,12 +238,13 @@ export function generateNotifications(params: {
   const notifications: NotificationItem[] = [];
   const seen = new Set<string>();
 
+  // 注意：不再按 listPublishedAt >= lastCheckTime 过滤。
+  // 本站为静态快照数据，条目发布时间都在过去；一旦访问过一次、lastCheckTime
+  // 被写成"现在"，之后所有旧条目都会 < lastCheckTime，导致"关注"有内容但
+  // "通知/新提醒"永远为空。改为对全部近期条目匹配订阅，靠 mergeNotifications
+  // 按 id 去重 + read 状态持久化来避免重复提醒，从而让订阅能回填历史命中。
+  void lastCheckTime;
   for (const policy of recentPolicies) {
-    if (lastCheckTime) {
-      const pubTime = new Date(policy.listPublishedAt).getTime();
-      if (pubTime < lastCheckTime) continue;
-    }
-
     const matches: Array<{
       type: "department" | "keyword";
       target: string;
@@ -264,11 +265,16 @@ export function generateNotifications(params: {
       }
     }
 
+    // matchedKeywords 在 /api/inbox 的返回里常常是空数组（扫描器未回填），
+    // 若只认这个字段，关键词订阅将永远命中不到 → 通知恒空。
+    // 因此回退到标题匹配（与站内「关键词命中/搜索」一致的口径）。
     const policyKeywords = new Set(
       (policy.matchedKeywords || []).map((k) => k.toLowerCase()),
     );
+    const titleLower = (policy.title || "").toLowerCase();
     for (const kw of kwSubs) {
-      if (policyKeywords.has(kw.target.toLowerCase())) {
+      const target = kw.target.toLowerCase();
+      if (policyKeywords.has(target) || (target && titleLower.includes(target))) {
         matches.push({
           type: "keyword",
           target: kw.target,
@@ -497,7 +503,11 @@ export async function checkNotifications(
   const lastCheckRaw = window.localStorage.getItem(LAST_CHECK_KEY);
   const lastCheckTime = lastCheckRaw ? parseInt(lastCheckRaw, 10) : 0;
 
-  if (!force && lastCheckTime > 0 && now - lastCheckTime < CHECK_INTERVAL) {
+  // 存储为空时（还从未成功生成过通知）跳过 5 分钟节流，立即回填一次，
+  // 否则用户反复在 5 分钟内刷新会一直被节流，通知卡永远为空。
+  const storageEmpty = Object.keys(getAllFromStorage()).length === 0;
+
+  if (!force && !storageEmpty && lastCheckTime > 0 && now - lastCheckTime < CHECK_INTERVAL) {
     const all = getAllFromStorage();
     return {
       newCount: 0,

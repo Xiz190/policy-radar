@@ -56,18 +56,6 @@ export type SourceDetailView = {
 };
 
 // 通用 emoji 图标包一层，确保在深色/浅色背景都正常渲染
-function Icon({ children, invert }: { children: React.ReactNode; invert?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={`inline-block align-text-bottom leading-none opacity-100 ${invert ? "text-slate-900" : ""}`}
-      style={{ fontVariant: "no-common-ligatures", WebkitTextFillColor: "initial" }}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function SourceDetailPanel({
   detail,
   topItems,

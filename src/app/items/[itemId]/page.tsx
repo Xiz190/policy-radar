@@ -11,10 +11,7 @@ import {
 } from "@/lib/monitor/db";
 import { generateMockItems, MOCK_ARTICLES } from "@/lib/monitor/mock";
 import { filterTopicCategories } from "@/lib/monitor/content-meta";
-import { generateMockStructuredSummary, generateMockPolicyEvolution } from "@/lib/monitor/detail-mock";
-import { getFirstTopicCategory } from "@/lib/monitor/content-meta";
 import type { RelatedItemsData } from "@/components/related-items";
-import type { PolicyEvolutionData } from "@/components/item-history";
 import { createLogger } from "@/lib/logger";
 import { isDbAvailable } from "@/lib/db";
 
@@ -243,10 +240,16 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
   const images = item.attachments.filter((a) => a.kind === "image");
   const externalLinks = item.externalLinks ?? [];
 
+  // 数据库 content_quality 实际取值：high / medium / low / minimal / empty / null
+  // （原 switch 判断的是 full / partial，从未命中，几乎所有完整正文都被标成「内容未抓取」）
   const contentQualityBadge = (() => {
     switch (item.contentQuality) {
+      case "high":
       case "full":
-        return { label: "已提取正文", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+        return { label: "已提取正文", color: "bg-white text-slate-600 border-slate-200" };
+      case "medium":
+      case "low":
+      case "minimal":
       case "partial":
         return { label: "内容疑似不完整", color: "bg-amber-50 text-amber-700 border-amber-200" };
       case "empty":
@@ -256,29 +259,10 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
     }
   })();
 
-  const structuredSummary = generateMockStructuredSummary(item.title);
-  logger.debug("生成结构化摘要", {
-    coreContentCount: structuredSummary.coreContent.length,
-    impactIndustriesCount: structuredSummary.impactScope.industries.length,
-    timelineCount: structuredSummary.timeline.length,
-    actionItemsCount: structuredSummary.actionItems.length,
-  });
-
-  const topicCategory = getFirstTopicCategory(item.categories || []) || "政策领域";
-  logger.debug("获取主题分类", { topicCategory, categoriesCount: item.categories?.length || 0 });
-  
-  const policyEvolution = generateMockPolicyEvolution(topicCategory);
-  logger.debug("生成政策演进数据", {
-    domain: policyEvolution.domain,
-    timelineCount: policyEvolution.timeline.length,
-    currentStage: policyEvolution.currentStage,
-  });
-
   const relatedPoliciesData: RelatedItemsData = {
-    sameTopic: sameTopicItems.map((it, i) => ({
+    sameTopic: sameTopicItems.map((it) => ({
       ...it,
       relationType: "sameTopic" as const,
-      similarityScore: 70 + ((i * 5) % 25),
     })),
     sameDept: sameDeptItems.map((it) => ({
       ...it,
@@ -300,7 +284,6 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
     sameTopicCount: relatedPoliciesData.sameTopic.length,
     sameDeptCount: relatedPoliciesData.sameDept.length,
     citedCount: relatedPoliciesData.cited.length,
-    similarityScores: relatedPoliciesData.sameTopic.map((it) => it.similarityScore),
   });
 
   return (
@@ -313,7 +296,7 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
             scroll={false}
             className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
           >
-            ← 收件箱
+            ← 动态资讯
           </Link>
           <span className="text-slate-300">/</span>
           {item.departmentName && (
@@ -347,8 +330,6 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
             externalLinks={externalLinks}
             contentQualityBadge={contentQualityBadge}
             related={related}
-            structuredSummary={structuredSummary}
-            policyEvolution={policyEvolution}
             relatedPoliciesData={relatedPoliciesData}
             isMock={!dbItem}
           />

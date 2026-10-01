@@ -660,7 +660,7 @@ export function CompareClient() {
                         </p>
                       </div>
                       {!aiResult && !aiLoading && (
-                        <button
+                        <button data-owner-only
                           onClick={handleAiCompare}
                           disabled={items.length < 2}
                           className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
@@ -761,7 +761,7 @@ export function CompareClient() {
                               <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                               {diffCount} 个差异字段
                             </span>
-                            <button
+                            <button data-owner-only
                               onClick={handleAiCompare}
                               className="ml-auto inline-flex items-center gap-1 text-violet-600 hover:text-violet-700"
                             >
@@ -842,7 +842,7 @@ export function CompareClient() {
                             </span>
                           )}
                         </h3>
-                        <button
+                        <button data-owner-only
                           onClick={handleAiCompare}
                           className="text-xs text-slate-500 hover:text-slate-700"
                         >

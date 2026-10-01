@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createApiLogger } from "@/lib/logger";
+import { isOwnerRequest, isPublicDemo } from "@/lib/demo-mode";
 
 const apiLog = createApiLogger("api/proxy");
 
@@ -62,8 +63,10 @@ async function handleRequest(request: Request): Promise<Response> {
     body,
   } as RequestInit);
   
+  // 只替作者本人注入管理员口令。演示站上若对所有人注入，访客经这里转发的请求就等于带着管理员身份
+  // （写操作虽然在 proxy.ts 已被挡，读也不该越权）。本地开发不是演示模式，照旧注入。
   const token = process.env.ADMIN_TOKEN;
-  if (token) {
+  if (token && (!isPublicDemo() || isOwnerRequest(request))) {
     augmentedRequest.headers.set("Authorization", `Bearer ${token}`);
     apiLog.debug("已注入 ADMIN_TOKEN");
   }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState, useEffect, useLayoutEffect } from "react";
+import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Minimize2 } from "lucide-react";
+import { usePrefs } from "@/contexts/prefs-context";
 
 export function FloatingPagination({
   page,
@@ -13,6 +15,7 @@ export function FloatingPagination({
   totalCount: number;
   onChange: (next: number) => void;
 }) {
+  const en = usePrefs().language === "en";
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const start = totalCount === 0 ? 0 : (safePage - 1) * pageSize + 1;
@@ -32,9 +35,9 @@ export function FloatingPagination({
   }
 
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const [collapsed, setCollapsed] = useState<boolean>(
-    () => typeof window !== "undefined" && window.innerWidth < 640,
-  );
+  // 首帧固定按"展开"渲染，服务端和浏览器输出一致（原先首帧就读 innerWidth，手机上会水合失败）；
+  // 手机上收成浮球放到下面的 layout effect 里做，发生在绘制之前，不会闪
+  const [collapsed, setCollapsed] = useState<boolean>(false);
   const [mounted] = useState<boolean>(true);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const posRef = useRef(pos);
@@ -50,9 +53,12 @@ export function FloatingPagination({
         if (typeof v.x === "number" && typeof v.y === "number") startPos = v;
       }
     } catch {}
+    const startCollapsed = window.innerWidth < 640;
+    if (startCollapsed) setCollapsed(true);
     if (!startPos) {
-      const w = el.offsetWidth || 520;
-      const h = el.offsetHeight || 64;
+      // 收成浮球时按浮球尺寸（48px 按钮 + 内边距）居中，而不是按展开条的宽度
+      const w = startCollapsed ? 72 : el.offsetWidth || 520;
+      const h = startCollapsed ? 64 : el.offsetHeight || 64;
       startPos = {
         x: Math.max(8, (window.innerWidth - w) / 2),
         y: Math.max(8, window.innerHeight - h - (window.innerWidth < 640 ? 88 : 16)),
@@ -154,7 +160,7 @@ export function FloatingPagination({
           type="button"
           onClick={() => setCollapsed(false)}
           className="flex h-12 w-12 items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-100"
-          title={`共 ${totalCount} 条 · 第 ${safePage}/${totalPages} 页 · 点击展开`}
+          title={en ? `${totalCount} items · page ${safePage}/${totalPages} · click to expand` : `共 ${totalCount} 条 · 第 ${safePage}/${totalPages} 页 · 点击展开`}
         >
           <div className="flex flex-col items-center leading-none">
             <span className="text-[11px] text-slate-500">{totalCount}</span>
@@ -167,9 +173,10 @@ export function FloatingPagination({
             type="button"
             onClick={() => setCollapsed(true)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-sm text-slate-600 transition hover:bg-slate-100"
-            title="收为浮球"
+            title={en ? "Minimize" : "收为浮球"}
+            aria-label={en ? "Minimize" : "收为浮球"}
           >
-            ◣
+            <Minimize2 className="h-3.5 w-3.5" aria-hidden />
           </button>
           <button
             type="button"
@@ -178,7 +185,7 @@ export function FloatingPagination({
             }}
             className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 transition hover:border-slate-400"
           >
-            ← 返回
+            <ArrowLeft className="mr-1 h-3.5 w-3.5" aria-hidden />{en ? "Back" : "返回"}
           </button>
           <button
             type="button"
@@ -187,22 +194,32 @@ export function FloatingPagination({
             }}
             className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 transition hover:border-slate-400"
           >
-            ↑ 顶部
+            <ArrowUp className="mr-1 h-3.5 w-3.5" aria-hidden />{en ? "Top" : "顶部"}
           </button>
           <span className="mx-1 h-5 w-px bg-slate-200" />
           <div className="whitespace-nowrap text-[11px] text-slate-500">
-            共 <span className="font-semibold text-slate-900">{totalCount}</span> ·{" "}
-            <span className="font-semibold text-slate-900">{start}-{end}</span> · 第{" "}
-            <span className="font-semibold text-slate-900">{safePage}</span> / {totalPages} 页
+            {en ? (
+              <>
+                <span className="font-semibold text-slate-900">{start}–{end}</span> of{" "}
+                <span className="font-semibold text-slate-900">{totalCount}</span> · page{" "}
+                <span className="font-semibold text-slate-900">{safePage}</span> / {totalPages}
+              </>
+            ) : (
+              <>
+                共 <span className="font-semibold text-slate-900">{totalCount}</span> ·{" "}
+                <span className="font-semibold text-slate-900">{start}-{end}</span> · 第{" "}
+                <span className="font-semibold text-slate-900">{safePage}</span> / {totalPages} 页
+              </>
+            )}
           </div>
           <span className="mx-1 h-5 w-px bg-slate-200" />
-          <button
+          <button aria-label={en ? "Previous page" : "上一页"}
             type="button"
             onClick={() => onChange(safePage - 1)}
             disabled={safePage <= 1}
             className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            ←
+            <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
           <div className="flex flex-wrap items-center gap-1">
             {pageNums.map((p, i) =>
@@ -224,13 +241,13 @@ export function FloatingPagination({
               ),
             )}
           </div>
-          <button
+          <button aria-label={en ? "Next page" : "下一页"}
             type="button"
             onClick={() => onChange(safePage + 1)}
             disabled={safePage >= totalPages}
             className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            →
+            <ChevronRight className="h-4 w-4" aria-hidden />
           </button>
         </div>
       )}
