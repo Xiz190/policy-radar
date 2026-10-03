@@ -292,6 +292,37 @@ function pickListHtml(html: string): string {
   return html;
 }
 
+/** 读 <abbr id="json">[{title,time,url}, ...]</abbr> 形式的隐藏列表；没有或解析失败返回空数组 */
+export function parseEmbeddedJsonList(html: string, listUrl: string, limit: number): MonitorListItem[] {
+  const m = html.match(/<abbr[^>]*id=["']json["'][^>]*>([\s\S]*?)<\/abbr>/i);
+  if (!m) return [];
+  let rows: unknown;
+  try {
+    rows = JSON.parse(m[1].trim());
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(rows)) return [];
+  const items: MonitorListItem[] = [];
+  for (const r of rows) {
+    const row = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
+    const title = typeof row.title === "string" ? row.title.trim() : "";
+    const time = typeof row.time === "string" ? row.time.trim() : "";
+    const href = typeof row.url === "string" ? row.url.trim() : "";
+    if (!title || !/^\d{4}-\d{2}-\d{2}/.test(time) || !href) continue;
+    let url: string;
+    try {
+      url = new URL(href, listUrl).toString();
+    } catch {
+      continue;
+    }
+    if (items.some((x) => x.url === url)) continue;
+    items.push({ title, url, listPublishedAt: time.slice(0, 10) });
+    if (items.length >= limit) break;
+  }
+  return items;
+}
+
 export async function fetchBeijingGovListLatest(
   listUrl: string,
   limit: number,
@@ -310,6 +341,12 @@ export async function fetchBeijingGovListLatest(
   }
 
   const html = await response.text();
+
+  // 部分区站（如丰台「政策文件」）把列表数据以 JSON 藏在 <abbr id="json"> 里、页面上再用脚本渲染，
+  // HTML 里的 <li> 是空的。有这个隐藏 JSON 就直接读它（每条带 title / time / url）。
+  const embedded = parseEmbeddedJsonList(html, listUrl, limit);
+  if (embedded.length > 0) return embedded;
+
   const listHtml = pickListHtml(html);
 
   const liRe = /<li[^>]*>[\s\S]*?<\/li>/gi;

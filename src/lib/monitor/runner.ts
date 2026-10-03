@@ -11,6 +11,7 @@ import { fetchMctZwgkGenreLatest } from "@/lib/monitor/mct-zwgk-list";
 import { fetchMofZhengwuxinxiLatest } from "@/lib/monitor/mof-zhengwuxinxi-list";
 import { fetchBeijingGovListLatest } from "@/lib/monitor/beijing-gov-list";
 import {
+  fetchGovcnAutoJsonList,
   fetchGovcnYaowen,
   fetchGovcnZuixin,
   fetchGovcnZhongyang,
@@ -38,6 +39,7 @@ import {
   updateRunFinished,
   upsertItemDetail,
 } from "@/lib/monitor/db";
+import { passesSourceTopicGate } from "@/lib/monitor/topic-gate";
 
 function nowIso() {
   return new Date().toISOString();
@@ -67,6 +69,8 @@ function resolveListItems(source: MonitorSourceConfig, limit: number): Promise<M
     return fetchBeijingGovListLatest(source.listUrl, limit);
   }
   // 国务院/中国政府网 JSON 栏目（列表页通过 xxx.json 返回数据）
+  // 国务院栏目页：自动发现页面加载的数据 JSON（见 fetchGovcnAutoJsonList）
+  if (t === "govcn_json") return fetchGovcnAutoJsonList(source.listUrl, limit);
   if (t === "govcn_yaowen") return fetchGovcnYaowen(limit);
   if (t === "govcn_zuixin") return fetchGovcnZuixin(limit);
   if (t === "govcn_zhongyang") return fetchGovcnZhongyang(limit);
@@ -403,6 +407,8 @@ export async function runMonitorOnce(options: RunMonitorOptions = {}) {
             if (!n || n < source.startDate) return [];
             // 领域主题门槛：标题未命中 __domain__ 词表则不入库（滤掉人事/采购/时政等杂务）
             if (!passesDomainGate(item.title)) return [];
+            // 综合大部委（工信部 / 国务院栏目 JSON）再过一层更严的主题门槛，见 topic-gate.ts
+            if (!passesSourceTopicGate(source.type, item.title)) return [];
             return [{ ...item, listPublishedAt: n }];
           })
           .slice(0, source.maxItems);
