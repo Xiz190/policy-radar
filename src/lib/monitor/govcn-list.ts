@@ -120,3 +120,21 @@ export const fetchGovcnZhongyang = (limit = 50) =>
     "TONGYONGLIEBIAODRQ.json",
     limit,
   );
+
+/**
+ * 自动发现栏目页自己加载的 JSON（gov.cn 列表页用 $ajax("./XXX.json") 拉数据），再按 fetchGovcnJsonList 解析。
+ * 不在配置里写死文件名：各栏目用的 TONGYONGLIEBIAO / TONGYONGLIEBIAODRQ / ZCJD_QZ 等不一样，站方改名也能跟上。
+ * runner 里对应 type = "govcn_json"，listUrl 填栏目页即可。
+ */
+export async function fetchGovcnAutoJsonList(listUrl: string, limit: number): Promise<MonitorListItem[]> {
+  const res = await fetch(listUrl, {
+    headers: { "user-agent": "Mozilla/5.0 (compatible; SOLO monitor; +https://www.gov.cn/)" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) throw new Error(`govcn 栏目页抓取失败: ${res.status} (${listUrl})`);
+  const html = await res.text();
+  const m = html.match(/["'(]\.\/([A-Za-z0-9_-]+\.json)/);
+  if (!m) throw new Error(`govcn 栏目页里没找到数据 JSON（可能改成了单页应用）: ${listUrl}`);
+  return fetchGovcnJsonList(listUrl, m[1], limit);
+}

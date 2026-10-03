@@ -781,7 +781,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 10. 财政数据 · 部门预决算
   {
     id: "bjczj_bmyjs",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：内容与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "bjczj_list",
@@ -1043,7 +1044,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 11. 市政府新闻发布会（重要：发布的政策/新闻稿）
   {
     id: "bjsrmzfw_shipin_xwfbh",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：视频页
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -1106,7 +1108,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 15. 规章（政府信息公开 - 规章）
   {
     id: "bjsrmzfw_gk_gz",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：日期不规范，几乎不涉及 AI
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -1273,7 +1276,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 26. 优化营商环境 - 国家政策（带 channelId 查询）
   {
     id: "bjsrmzfw_yhyshj_gjzc",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -1288,7 +1292,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 27. 开办企业
   {
     id: "bjsrmzfw_yhyshj_kbqy",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1303,7 +1308,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 28. 办理建筑许可
   {
     id: "bjsrmzfw_yhyshj_bljzxk",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1318,7 +1324,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 29. 财产登记
   {
     id: "bjsrmzfw_yhyshj_ccdj",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1333,7 +1340,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 30. 政府采购
   {
     id: "bjsrmzfw_yhyshj_zfcg",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -1348,7 +1356,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 31. 执行合同
   {
     id: "bjsrmzfw_yhyshj_zxht",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1363,7 +1372,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 32. 获得信贷
   {
     id: "bjsrmzfw_yhyshj_hdxd",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1378,7 +1388,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 33. 跨境贸易
   {
     id: "bjsrmzfw_yhyshj_kjmy",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1393,7 +1404,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 34. 企业人才引进
   {
     id: "bjsrmzfw_yhyshj_qyrcyj",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -1408,7 +1420,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 35. 纳税
   {
     id: "bjsrmzfw_yhyshj_nashui",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1423,7 +1436,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 36. 获得电力
   {
     id: "bjsrmzfw_yhyshj_hddl",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1438,7 +1452,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 37. 政务服务便利化
   {
     id: "bjsrmzfw_yhyshj_zwfwblh",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1453,7 +1468,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 38. 办理破产
   {
     id: "bjsrmzfw_yhyshj_blpc",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：营商环境搜索页，与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: false,
     type: "beijing_gov_list",
@@ -1490,7 +1506,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "govcn_json",
     departmentName: "国务院",
     channelGroup: "政策解读",
     channelName: "政策集成",
@@ -1521,7 +1537,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "govcn_json",
     departmentName: "国务院",
     channelGroup: "政策解读",
     channelName: "政策解读·聚焦专题",
@@ -1583,7 +1599,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "govcn_json",
     departmentName: "国务院",
     channelGroup: "要闻动态",
     channelName: "决策部署",
@@ -1598,7 +1614,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: false,
-    type: "beijing_gov_list",
+    type: "govcn_json",
     departmentName: "国务院",
     channelGroup: "要闻动态",
     channelName: "政务联播",
@@ -1613,7 +1629,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "govcn_json",
     departmentName: "国务院",
     channelGroup: "要闻动态",
     channelName: "新闻发布",
@@ -1628,7 +1644,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "govcn_json",
     departmentName: "国务院",
     channelGroup: "政策解读",
     channelName: "政策解读·主页",
@@ -1640,7 +1656,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 52. 国家行政法规库
   {
     id: "govcn_xzfgk",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：单页应用，无可用数据接口
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -1655,7 +1672,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   // 53. 惠企助企政策
   {
     id: "govcn_huiqi",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：单页应用，无可用数据接口
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -2554,7 +2572,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   },
   {
     id: "bjjxj_zwgk_yfxzgs",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：内容与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "beijing_gov_list",
@@ -2670,7 +2689,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "时政要闻",
@@ -2684,7 +2703,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "工信动态",
@@ -2698,7 +2717,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "部领导活动",
@@ -2712,7 +2731,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "司局负责人发布",
@@ -2726,7 +2745,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "国新办新闻发布会",
@@ -2740,7 +2759,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "国务院政策例行吹风会",
@@ -2754,7 +2773,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "部新闻发布会",
@@ -2768,7 +2787,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "其他新闻发布会",
@@ -2782,7 +2801,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "司局动态",
@@ -2796,7 +2815,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "地方动态",
@@ -2810,7 +2829,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "部属动态",
@@ -2824,7 +2843,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: false,
     isKey: false,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "图文报道",
@@ -2838,7 +2857,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "要闻发布",
     channelName: "文字报道",
@@ -2852,7 +2871,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "命令(令)",
@@ -2866,7 +2885,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "公告",
@@ -2880,7 +2899,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "通告",
@@ -2894,7 +2913,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "报告",
@@ -2908,7 +2927,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "决定",
@@ -2922,7 +2941,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "意见",
@@ -2936,7 +2955,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "通知",
@@ -2950,7 +2969,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "通报",
@@ -2964,7 +2983,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "批复",
@@ -2978,7 +2997,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "建议提案复文",
@@ -2992,7 +3011,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "法律法规",
@@ -3006,7 +3025,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "文件公示",
@@ -3020,7 +3039,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "政策文件（政务公开）",
     channelName: "政策解读",
@@ -3034,7 +3053,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: false,
     isKey: false,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "建议提案公开",
     channelName: "全国人大代表建议复文公开",
@@ -3048,7 +3067,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: false,
     isKey: false,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "建议提案公开",
     channelName: "全国政协委员提案公开",
@@ -3062,7 +3081,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: false,
     isKey: false,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "人事与财务",
     channelName: "公务员招录",
@@ -3076,7 +3095,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: false,
     isKey: false,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "人事与财务",
     channelName: "财务信息",
@@ -3090,7 +3109,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "工业运行·行业数据",
     channelName: "原材料工业",
@@ -3104,7 +3123,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "工业运行·行业数据",
     channelName: "装备工业",
@@ -3118,7 +3137,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "工业运行·行业数据",
     channelName: "消费品工业",
@@ -3132,7 +3151,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "工业运行·行业数据",
     channelName: "通信业",
@@ -3146,7 +3165,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "工业运行·行业数据",
     channelName: "电子信息制造业",
@@ -3160,7 +3179,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "工业运行·行业数据",
     channelName: "软件业",
@@ -3174,7 +3193,7 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
     enabled: true,
     autoMonitor: true,
     isKey: true,
-    type: "beijing_gov_list",
+    type: "miit_list",
     departmentName: "工业和信息化部",
     channelGroup: "工业运行·行业数据",
     channelName: "互联网",
@@ -6673,7 +6692,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   },
   {
     id: "bjft_gfxwj",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：与丰台·政府文件网址重复
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "bjft_list",
@@ -6701,7 +6721,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   },
   {
     id: "bjft_sjfb",
-    enabled: true,
+    // 2026-10 停用（从未抓到过内容）：内容与主题无关
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "bjft_list",
