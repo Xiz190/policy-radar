@@ -68,7 +68,7 @@ runner 统一调度(按 source.type 分发)
 | 框架 | Next.js 16(App Router)+ TypeScript 5 |
 | 数据库 | PostgreSQL 16 |
 | 样式 | Tailwind CSS 4 |
-| 测试 | Vitest（762 个用例） |
+| 测试 | Vitest（769 个用例） |
 
 ---
 
