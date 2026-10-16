@@ -47,7 +47,7 @@ Point it at yet another field, say independent investors, and with a new configu
 
 The code also keeps crawlers for other ministries, such as Transport, Water Resources, Tobacco and Ecology and Environment. They're switched off because they fall outside the current focus, but they show that adding a new ministry only takes one more crawler. The engine doesn't change.
 
-To plug in a completely new field, [`docs/接入新领域.md`](docs/接入新领域.md) (in Chinese) lists every place you'd need to change and what breaks if you don't. Think of it as a hand-written domain config guide.
+To plug in a completely new field, [`docs/adding-a-new-domain.md`](docs/adding-a-new-domain.md) lists every place you'd need to change and what breaks if you don't. Think of it as a hand-written domain config guide.
 
 ---
 
