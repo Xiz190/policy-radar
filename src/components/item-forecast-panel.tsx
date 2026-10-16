@@ -100,7 +100,7 @@ export function ItemForecastPanel({
         setAiResult(data.result);
         // 关键词降级模式（confidence < 60 且来自规则引擎）→ 给个友好提示
         if (typeof data.result.confidence === "number" && data.result.confidence <= 50) {
-          setSaveMessage("⚠ 当前未配置豆包 API key，已使用关键词规则生成的建议内容，可编辑后保存。");
+          setSaveMessage("⚠ 当前未配置大模型 API key，已使用关键词规则生成的建议内容，可编辑后保存。");
           setTimeout(() => setSaveMessage(null), 5000);
         }
       } else {

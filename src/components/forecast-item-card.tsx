@@ -104,7 +104,7 @@ export function ForecastItemCard({ item }: { item: ForecastItemData }) {
 
         if (source === "rule") {
           setAiHint(
-            "提示：当前返回的是关键词规则结果。在 .env.local 中配置 LLM_API_KEY / DOUBAO_API_KEY 后可接入大模型，自动生成更高质量的判断。",
+            "提示：当前返回的是关键词规则结果。在 .env.local 中配置 LLM_API_KEY 后可接入大模型，自动生成更高质量的判断。",
           );
           setTimeout(() => setAiHint(null), 12000);
         } else {

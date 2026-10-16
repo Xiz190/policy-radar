@@ -102,13 +102,27 @@ Later I realized the engine had nothing to do with policy. Underneath it was alw
 
 ## Quick start
 
+You'll need Node.js and PostgreSQL 16. An LLM API key is optional.
+
 ```bash
 npm install
-cp .env.local.example .env.local   # set DATABASE_URL
-npm run dev                        # development
-npm run build                      # production build
-npm run test                       # unit tests
+cp .env.local.example .env.local                  # fill in DATABASE_URL; LLM_* only if you want the LLM features
+
+createdb policy_radar                             # any name, just match DATABASE_URL
+psql -d policy_radar -f schema.sql                # create tables
+psql -d policy_radar -f policy-seed.sql           # add the sources and keywords used in production
+
+npx tsx --env-file=.env.local scripts/crawl.ts    # one crawl (lots of sources, takes a while)
+npm run dev                                       # open http://localhost:3000
 ```
+
+- **The LLM is optional.** Crawling and scoring don't call it; the Q&A assistant and policy analysis do. Without a key they fall back to keyword rules instead of failing. Any OpenAI-compatible API works (DeepSeek, OpenAI, etc.). It's usually pay-as-you-go on your own key. See section 2 of `.env.local.example`.
+- `init-data.sql` is the original small seed (a few dozen sources) and is out of date. `policy-seed.sql` covers everything.
+- There are three env templates: `.env.local.example` for local development, `.env.docker.example` for Docker, and `.env.example`, a shorter subset of the first.
+- **Demo mode**: the live demo is read-only for visitors via `PUBLIC_DEMO=1` plus `ADMIN_TOKEN`. The author unlocks everything at `/unlock`. See section 3 of `.env.local.example`. Leave it off for local development.
+- **Scheduling is up to you.** This public repo ships without a scheduled job. The live demo crawls twice a day from the author's private deployment, since that needs database credentials and keys. For your own setup, run `scripts/crawl.ts` on a timer (cron, GitHub Actions, etc.).
+
+Other commands: `npm run build` (production build), `npm run test` (unit tests).
 
 ---
 

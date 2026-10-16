@@ -102,13 +102,27 @@ runner 统一调度（按 source.type 分发）
 
 ## 快速开始
 
+需要准备：Node.js、PostgreSQL 16。大模型 API key 可选。
+
 ```bash
 npm install
-cp .env.local.example .env.local   # 配置 DATABASE_URL
-npm run dev                        # 开发模式
-npm run build                      # 生产构建
-npm run test                       # 单元测试
+cp .env.local.example .env.local                  # 填 DATABASE_URL；要用大模型再填 LLM_*
+
+createdb policy_radar                             # 库名随意，和 DATABASE_URL 对上
+psql -d policy_radar -f schema.sql                # 建表
+psql -d policy_radar -f policy-seed.sql           # 写入线上在用的数据源和关键词
+
+npx tsx --env-file=.env.local scripts/crawl.ts    # 抓一轮（来源多，要跑一会儿）
+npm run dev                                       # 打开 http://localhost:3000
 ```
+
+- **大模型是可选的**：抓取和打分不调用大模型；问答助手和政策分析会用到。不配 key 时会降级为关键词规则，不会崩。要用的话，任何 OpenAI 兼容接口都可以（DeepSeek、OpenAI 等），一般按用量付费，用的是你自己的 key。配置示例见 `.env.local.example` 第 2 节。
+- `init-data.sql` 是最早的一小份初始数据（几十个源），已经跟不上线上配置了，用 `policy-seed.sql` 就够了。
+- 环境变量示例有三份：本地开发用 `.env.local.example`；用 Docker 部署用 `.env.docker.example`；`.env.example` 是精简版，内容是前者的子集。
+- **演示模式**：在线演示里访客只能浏览，靠的是 `PUBLIC_DEMO=1` 加 `ADMIN_TOKEN`。作者在 `/unlock` 页输入口令后解锁全部功能。说明见 `.env.local.example` 第 3 节；本地开发不用开。
+- **定时抓取需要自己配**：这个公开仓库不带定时任务。在线演示每天抓两次，定时任务放在作者的私有部署里跑，因为它要用到数据库地址和密钥。自己部署时，可以用 cron、GitHub Actions 等方式定时运行 `scripts/crawl.ts`。
+
+其他命令：`npm run build`（生产构建）、`npm run test`（单元测试）。
 
 ---
 
