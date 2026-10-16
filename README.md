@@ -1,8 +1,10 @@
-# Radar · 领域无关的情报工作流框架
+# Radar · A Domain-Agnostic Intelligence Framework
 
-> 把「找 → 核实 → 关联 → 分析」这条情报工作流半自动化。**底座领域无关,领域配置决定视角**——同一台引擎,换个领域,就服务不同的用户。
+**English** · [中文](README.zh-CN.md)
 
-**在线演示**：<https://policy-radar-xiz.vercel.app>（演示模式：访客可浏览、搜索、使用问答助手；写操作与管理后台仅作者可用）
+> A domain-agnostic AI intelligence engine. Underneath, it always runs the same workflow: find, verify, connect, analyze. Swap the "domain lens" on top and it serves a different kind of user. Same information, different lens, different meaning.
+
+**Live demo (policy instance)**: <https://policy-radar-xiz.vercel.app> (demo mode: visitors can browse, search and use the Q&A assistant; editing and the admin pages are author-only. The interface is in Chinese because all the sources are Chinese government websites.)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.x-black)](https://nextjs.org/)
@@ -10,83 +12,109 @@
 
 ---
 
-## 它是什么
+## What it is
 
-**Radar** 是一个领域无关的情报框架:统一的数据采集 → 存储 → 分析 → 可视化管道,配合**可插拔的「领域视角层」**,把同一份情报翻译成不同领域的专属视角。
+It isn't a tool for one particular field. It's a domain-agnostic intelligence framework.
 
-> 底层跑的是同一套「找、核实、关联、分析」;区别只在最上面那层解读——**用谁的视角看**。
+Underneath is a single data pipeline (collect, store, analyze, visualize) running the same semi-automated intelligence workflow: find, verify, connect, analyze.
+
+The only thing that changes is the top layer: a pluggable **domain lens**. To move to a new field, you swap the configuration (sources, categories, keywords, prompts). The engine stays the same.
+
+There are two instances so far:
+
+| Instance | Repo | Lens |
+|---|---|---|
+| **Policy Radar** | This repo | Tracks government releases on AI and the digital economy (AI, computing power, data as a production factor, the platform economy and so on), with signal detection, priority ranking and structured summaries |
+| **Creator Radar** | [`creator-radar`](https://github.com/Xiz190/creator-radar) | For independent musicians: tracks AI tool and industry news, and adds one line on what each update means for making music or MVs |
+
+A real item from Creator Radar:
+
+> ElevenLabs unveils 'Music v2.5' – but UMG wasn't involved  
+> **Creator lens:** The UMG carve-out matters more than the model: your vocals and mixes aren't the licensed part, so read the terms before you upload.
+
+Point it at yet another field, say independent investors, and with a new configuration the same update could read as "what this means for my holdings and my sector."
 
 ---
 
-## 领域无关的证据:同一底座,三个领域
+## The policy instance in this repo
 
-这个仓库保留了三套领域的数据源爬虫,它们同时跑在同一个底座上——这正是「领域无关」的铁证:
+**Sources currently running**:
 
-| 领域 | 数据源爬虫 |
+| Focus | Sources |
 |---|---|
-| **政府部委** | miit(工信部)· mof(财政部)· mot(交通部)· mwr(水利部)· tobacco(烟草局)· mct(文旅部)· 北京政府 · 政府网 · 通用政府站 |
-| **音乐文化** | 文旅部音乐文化栏目 · 文化政策 |
-| **AI 工具** | 见实例仓库 [创作者雷达 Creator Radar](https://github.com/Xiz190/creator-radar) |
+| AI and digital economy policy | Ministry of Industry and Information Technology · Cyberspace Administration of China · State Council (gov.cn) · Beijing municipal government, city departments and some district governments |
+| Cultural policy | Ministry of Culture and Tourism · National Copyright Administration |
 
-换一个领域,只需加一组 list 爬虫 + 一套领域配置(分类 / 关键词 / prompt),底座不变。具体要动哪几处、不动会怎样,见 [`docs/接入新领域.md`](docs/接入新领域.md)——把扩展缝逐一标清的"人肉版 domain config"。
+The code also keeps crawlers for other ministries, such as Transport, Water Resources, Tobacco and Ecology and Environment. They're switched off because they fall outside the current focus, but they show that adding a new ministry only takes one more crawler. The engine doesn't change.
+
+To plug in a completely new field, [`docs/接入新领域.md`](docs/接入新领域.md) (in Chinese) lists every place you'd need to change and what breaks if you don't. Think of it as a hand-written domain config guide.
 
 ---
 
-## 架构:list + runner
+## Architecture: list + runner
 
-数据采集的核心是「list 文件 + runner 注册」模式,天然可扩展到任意新源:
+Data collection is built on a "list file + runner registration" pattern, so every new source plugs in the same way:
 
 ```
-list 文件(每个源一个抓取器)
+List files (one crawler per source)
   └─ fetchXxxLatest(listUrl) → { title, url, listPublishedAt }
         ↓
-runner 统一调度(按 source.type 分发)
-  └─ 列表抓取 → 详情抓取 → 关键词/信号扫描 → 入库
+Runner (dispatches by source.type)
+  └─ list crawl → detail crawl → keyword / signal scan → database
         ↓
-视角层(可插拔)
-  └─ 用领域知识把情报翻译成该领域的视角
+Domain lens (pluggable)
+  └─ uses domain knowledge to turn raw items into that field's point of view
 ```
 
-> **数据来源与采集方法、已知局限**见应用内 `/sources` 页(按采集方式分组:静态页 / SPA 逆向接口 / 已排除,含每个源的难点与接入状态)。
-> 采集能力字典是单一真相源,在 [`src/lib/monitor/source-capability.ts`](src/lib/monitor/source-capability.ts) —— 页面由它自动汇总,改字典即改页面。
+> **Sources, collection methods and known limitations** are on the in-app `/sources` page, grouped by method (static pages, reverse-engineered single-page-app endpoints, excluded), with the difficulty and status of each source.
+> The capability dictionary in [`src/lib/monitor/source-capability.ts`](src/lib/monitor/source-capability.ts) is the single source of truth. The page is generated from it, so editing the dictionary updates the page.
 
 ---
 
-## 实例
+## How this was built
 
-| 实例 | 仓库 | 领域视角 |
-|---|---|---|
-| **创作者雷达** · Creator Radar | [`creator-radar`](https://github.com/Xiz190/creator-radar) | 给独立创作者:AI 工具动态 → "对做音乐/做 MV 意味着什么" |
-| **政策雷达** · Policy Radar | 本仓库(政策领域) | 给政策分析:政务信息 → 信号识别、优先级、结构化解读 |
+This is where it all started. I'm an ICAM (Interdisciplinary Computing and the Arts) student at UC San Diego, not a software engineer by training.
+
+During an internship, I had to summarize what was happening in one field over a period of time and work out how it connected to the company's business. That meant digging through documents on dozens of official websites by hand, then keeping an eye on them for updates and related information. It took forever. So I built myself a small tool: it watched those sites on a schedule, pulled up the original documents quickly, and passed them to an LLM to analyze based on the official text. It was my own way of working, not a company product, and this version was rebuilt independently from scratch afterwards, with no company code or data.
+
+I also added links between related documents. A lot of these sites build on or follow up on each other, so every item links to others on the same topic, from the same source, or that cite each other, so you can read them together.
+
+Later I realized the engine had nothing to do with policy. Underneath it was always find, verify, connect, analyze; only the top layer, whose point of view you read it from, changed. So I split it into a domain-agnostic base, with policy as just one instance, and built [Creator Radar](https://github.com/Xiz190/creator-radar) for music creators on the same base.
+
+**What I was responsible for**: framing the problem, the architecture idea of separating the engine from the domain lens, which sources to include, which idle or off-topic sources to switch off, the category and priority rules, and the interface direction.
+
+**What AI did**: most of the code was written by Claude Code (Anthropic) to my specifications. I reviewed the changes, ran and checked the tests, decided what shipped, and regularly opened the original pages to check that what the crawler pulled matched the source.
+
+**Next**: pushing updates to WeChat and Feishu (Lark), and connecting AI agents like OpenClaw so they can analyze the feed as a whole.
 
 ---
 
-## 技术栈
+## Tech stack
 
-| 分类 | 技术 |
+| Area | Technology |
 |---|---|
-| 框架 | Next.js 16(App Router)+ TypeScript 5 |
-| 数据库 | PostgreSQL 16 |
-| 样式 | Tailwind CSS 4 |
-| 测试 | Vitest（769 个用例） |
+| Framework | Next.js 16 (App Router) + TypeScript 5 |
+| Database | PostgreSQL 16 |
+| Styling | Tailwind CSS 4 |
+| Testing | Vitest (769 tests) |
 
 ---
 
-## 快速开始
+## Quick start
 
 ```bash
 npm install
-cp .env.local.example .env.local   # 配置 DATABASE_URL
-npm run dev                        # 开发模式
-npm run build                      # 生产构建
-npm run test                       # 单元测试
+cp .env.local.example .env.local   # set DATABASE_URL
+npm run dev                        # development
+npm run build                      # production build
+npm run test                       # unit tests
 ```
 
 ---
 
-## 合规声明
+## Compliance
 
-所有数据来自**公开接口 / 公开 RSS / 公开网页**,不涉及登录、绕过反爬、或抓取任何私密数据。
+All data comes from **public APIs, public RSS feeds and public web pages**. No logins, no getting around anti-bot protection, no private data.
 
 ---
 
