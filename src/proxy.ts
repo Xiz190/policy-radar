@@ -39,10 +39,8 @@ export const config = {
     "/api/:path*",
     "/monitor/:path*",
     "/keywords/:path*",
-    "/alerts/:path*",
     "/digest/:path*",
     "/settings/:path*",
     "/stats/:path*",
-    "/readinglist/:path*",
   ],
 };

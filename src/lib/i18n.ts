@@ -97,6 +97,8 @@ const translations = {
   "home.stat.followup-label": { zh: "待跟进",  en: "Follow-ups" },
   "home.stat.followup-unit":  { zh: "条需处理", en: "items" },
   "home.stat.followup-done":  { zh: "全部完成", en: "All done!" },
+  "home.followup.pending":    { zh: "待跟进 {n} 条", en: "Open follow-ups: {n}" },
+  "home.followup.none":       { zh: "没有待跟进", en: "No open follow-ups" },
 
   // ── Brief card ──
   "home.brief.title":   { zh: "今日情报速览",  en: "Today's Signals" },

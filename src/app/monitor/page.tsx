@@ -187,6 +187,8 @@ export default async function MonitorPage() {
 
         {/* 来源活跃度排名 */}
         {itemCounts.length > 0 && (() => {
+          // 服务端组件、每次请求渲染一次，取当前时间没问题（规则分不出服务端/客户端）
+          // eslint-disable-next-line react-hooks/purity
           const now = Date.now();
           function healthDot(lastSeenAt: string | null | undefined) {
             if (!lastSeenAt) return { color: "#94a3b8", label: "无数据" };
@@ -253,6 +255,8 @@ export default async function MonitorPage() {
 
         {/* 来源健康概览 */}
         {sources.length > 0 && (() => {
+          // 服务端组件、每次请求渲染一次，取当前时间没问题（规则分不出服务端/客户端）
+          // eslint-disable-next-line react-hooks/purity
           const now2 = Date.now();
           // 只统计启用的来源：停用的（储备源）不是"超期/无数据"，
           // 是被主动关掉的，算进来会把概览变成噪音。

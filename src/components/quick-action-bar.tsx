@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { fetchWithAuth } from "@/lib/fetch-with-auth";
 import { copyToClipboard, shareOrCopy } from "@/lib/clipboard";
 import {
@@ -14,8 +14,9 @@ import {
   setFollowUpStatus as setFollowUpStatusStorage,
 } from "@/lib/personal-research";
 import { StatusIcon } from "@/components/status-icon";
+import { RecaptureButton } from "@/components/recapture-button";
 import {
-  ClipboardList, FileText, NotebookPen, Tag,
+  ArrowLeftRight, Check, ChevronDown, ClipboardList, FileText, MoreHorizontal, NotebookPen, Share2, Star, Tag,
 } from "lucide-react";
 
 type QuickActionBarProps = {
@@ -31,6 +32,9 @@ type QuickActionBarProps = {
   initialRead: boolean;
   onCompareClick?: () => void;
   isInCompare?: boolean;
+  /** 打开原文的地址（finalUrl 优先）；操作栏第一颗实心按钮 */
+  originalUrl?: string | null;
+  isMock?: boolean;
 };
 
 export function QuickActionBar({
@@ -46,8 +50,10 @@ export function QuickActionBar({
   initialRead,
   onCompareClick,
   isInCompare = false,
+  originalUrl,
+  isMock,
 }: QuickActionBarProps) {
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isStarred, setIsStarred] = useState(initialStarred);
@@ -118,7 +124,6 @@ export function QuickActionBar({
 
   function handleNoteClick() {
     setShowNoteEditor(!showNoteEditor);
-    setShowExportMenu(false);
     setShowStatusMenu(false);
     if (!showNoteEditor) {
       setTimeout(() => noteTextareaRef.current?.focus(), 50);
@@ -137,7 +142,6 @@ export function QuickActionBar({
 
   function handleStatusClick() {
     setShowStatusMenu(!showStatusMenu);
-    setShowExportMenu(false);
     setShowNoteEditor(false);
   }
 
@@ -292,7 +296,6 @@ export function QuickActionBar({
       onSuccess: () => showToast("已复制全文"),
       onError: () => showToast("复制失败"),
     });
-    setShowExportMenu(false);
   }
 
   function handleExportWord() {
@@ -313,7 +316,6 @@ export function QuickActionBar({
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(urlObj), 5000);
     showToast("已开始导出 Word");
-    setShowExportMenu(false);
   }
 
   function handleExportNote() {
@@ -332,98 +334,65 @@ export function QuickActionBar({
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(urlObj), 5000);
     showToast("笔记模板已导出");
-    setShowExportMenu(false);
   }
 
+  // 一个外层 ref：点到操作栏外面就收起所有下拉
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showStatusMenu && !showMore) return;
+    function onDown(e: MouseEvent) {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+        setShowMore(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showStatusMenu, showMore]);
+
+  // 所有激活状态统一一种强调色（品牌浅底 + 品牌字），不再一个按钮一种颜色
+  const btn = (active: boolean) =>
+    `inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm transition disabled:opacity-60 ${
+      active ? "bg-[var(--brand-tint)] font-medium text-[var(--brand)]" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+    }`;
+  const menuItem = "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50";
+
   return (
-    <div className="sticky top-4 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm backdrop-blur-md">
-      <button data-owner-only
-        type="button"
-        onClick={handleStarred}
-        disabled={isPending}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition disabled:opacity-60 ${
-          isStarred
-            ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-            : "text-slate-600 hover:bg-slate-50"
-        }`}
-      >
-        <span>{isStarred ? "★" : "☆"}</span>
-        <span className="hidden sm:inline">{isStarred ? "已收藏" : "收藏"}</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={handleCompare}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition ${
-          localInCompare
-            ? "bg-violet-50 text-violet-700 ring-1 ring-violet-200"
-            : "text-slate-600 hover:bg-slate-50"
-        }`}
-      >
-        <span>⇄</span>
-        <span className="hidden sm:inline">{localInCompare ? "对比中" : "加入对比"}</span>
-      </button>
-
-      {localInCompare && (
+    <div ref={barRef} className="relative flex flex-wrap items-center gap-1.5">
+      {originalUrl ? (
         <a
-          href="/compare"
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-violet-600 px-3 text-sm font-medium text-white transition hover:bg-violet-700"
+          href={originalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mr-1 inline-flex h-9 items-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-700"
         >
-          <span>→</span>
-          <span className="hidden sm:inline">去对比</span>
+          打开原文 ↗
         </a>
-      )}
+      ) : null}
 
-      <button data-owner-only
-        type="button"
-        onClick={handleRead}
-        disabled={isPending}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition disabled:opacity-60 ${
-          isRead
-            ? "bg-sky-50 text-sky-700 ring-1 ring-sky-200"
-            : "text-slate-600 hover:bg-slate-50"
-        }`}
-      >
-        <span>✓</span>
-        <span className="hidden sm:inline">{isRead ? "已读" : "标已读"}</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={handleShare}
-        className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-      >
-        <span>↗</span>
-        <span className="hidden sm:inline">分享</span>
+      <button data-owner-only type="button" onClick={handleStarred} disabled={isPending} className={btn(isStarred)} aria-pressed={isStarred}>
+        <Star className="h-4 w-4" fill={isStarred ? "currentColor" : "none"} aria-hidden />
+        <span className="hidden sm:inline">{isStarred ? "已收藏" : "收藏"}</span>
       </button>
 
       {/* 跟进状态 */}
       <div className="relative">
-        <button
-          type="button"
-          onClick={handleStatusClick}
-          className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition ${
-            followUpStatus !== "none"
-              ? "bg-teal-50 text-teal-700 ring-1 ring-teal-200"
-              : "text-slate-600 hover:bg-slate-50"
-          }`}
-        >
+        <button type="button" onClick={handleStatusClick} className={btn(followUpStatus !== "none")} aria-expanded={showStatusMenu}>
           {followUpStatus !== "none" ? <StatusIcon status={followUpStatus} className="h-4 w-4" /> : <Tag className="h-4 w-4" aria-hidden />}
           <span className="hidden sm:inline">
             {followUpStatus !== "none" ? FOLLOW_UP_STATUS_LABELS[followUpStatus] : "跟进"}
           </span>
-          <span className="text-[10px]">▾</span>
+          <ChevronDown className="h-3 w-3" aria-hidden />
         </button>
-
         {showStatusMenu && (
-          <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          <div className="absolute left-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
             {FOLLOW_UP_STATUS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => handleStatusSelect(opt.value)}
                 className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 ${
-                  followUpStatus === opt.value ? "bg-slate-50 text-slate-900" : "text-slate-700"
+                  followUpStatus === opt.value ? "bg-[var(--brand-tint)] text-[var(--brand)]" : "text-slate-700"
                 }`}
               >
                 <opt.icon className="mt-0.5 h-4 w-4" aria-hidden />
@@ -437,62 +406,60 @@ export function QuickActionBar({
         )}
       </div>
 
-      {/* 备注按钮 */}
-      <button
-        type="button"
-        onClick={handleNoteClick}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition ${
-          note
-            ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
-            : "text-slate-600 hover:bg-slate-50"
-        }`}
-      >
+      <button type="button" onClick={handleNoteClick} className={btn(Boolean(note))}>
         <NotebookPen className="h-4 w-4" aria-hidden />
         <span className="hidden sm:inline">{note ? "已写备注" : "备注"}</span>
       </button>
 
+      <button type="button" onClick={handleCompare} className={btn(localInCompare)} aria-pressed={localInCompare}>
+        <ArrowLeftRight className="h-4 w-4" aria-hidden />
+        <span className="hidden sm:inline">{localInCompare ? "对比中" : "加入对比"}</span>
+      </button>
+      {localInCompare && (
+        <a href="/compare" className="inline-flex h-9 items-center px-1 text-sm font-medium text-[var(--brand)] underline-offset-4 hover:underline">
+          去对比 →
+        </a>
+      )}
+
+      {/* 低频操作收进「更多」 */}
       <div className="relative">
         <button
           type="button"
-          onClick={() => setShowExportMenu(!showExportMenu)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+          onClick={() => { setShowMore(!showMore); setShowStatusMenu(false); }}
+          className={btn(false)}
+          aria-expanded={showMore}
+          aria-label="更多操作"
         >
-          <span>↓</span>
-          <span className="hidden sm:inline">导出</span>
-          <span className="text-[10px]">▾</span>
+          <MoreHorizontal className="h-4 w-4" aria-hidden />
         </button>
-
-        {showExportMenu && (
-          <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-            <button
-              type="button"
-              onClick={handleCopyFullText}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-            >
+        {showMore && (
+          <div className="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+            <button data-owner-only type="button" onClick={() => { handleRead(); setShowMore(false); }} disabled={isPending} className={menuItem}>
+              <Check className="h-4 w-4" aria-hidden />
+              <span>{isRead ? "标记为未读" : "标记为已读"}</span>
+            </button>
+            <button type="button" onClick={() => { handleShare(); setShowMore(false); }} className={menuItem}>
+              <Share2 className="h-4 w-4" aria-hidden />
+              <span>分享</span>
+            </button>
+            <div className="mx-2 my-1 h-px bg-slate-100" />
+            <button type="button" onClick={() => { handleCopyFullText(); setShowMore(false); }} className={menuItem}>
               <ClipboardList className="h-4 w-4" aria-hidden />
               <span>复制全文</span>
             </button>
-            <button
-              type="button"
-              onClick={handleExportWord}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-            >
+            <button type="button" onClick={() => { handleExportWord(); setShowMore(false); }} className={menuItem}>
               <FileText className="h-4 w-4" aria-hidden />
               <span>导出 Word</span>
             </button>
-            <div className="mx-2 my-1 h-px bg-slate-100" />
-            <button
-              type="button"
-              onClick={handleExportNote}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-            >
+            <button type="button" onClick={() => { handleExportNote(); setShowMore(false); }} className={menuItem}>
               <NotebookPen className="h-4 w-4" aria-hidden />
               <span>导出笔记模板</span>
             </button>
+            <div className="mx-2 my-1 h-px bg-slate-100" />
+            <RecaptureButton sourceId={sourceId} url={url} isMock={isMock} className={menuItem} />
           </div>
         )}
       </div>
-
 
       {/* 备注编辑器 */}
       {showNoteEditor && (
@@ -512,14 +479,14 @@ export function QuickActionBar({
             <button
               type="button"
               onClick={() => setShowNoteEditor(false)}
-              className="inline-flex h-8 items-center rounded-lg px-3 text-sm text-slate-600 hover:bg-slate-100"
+              className="inline-flex h-8 items-center rounded-full px-3 text-sm text-slate-600 hover:bg-slate-100"
             >
               取消
             </button>
             <button
               type="button"
               onClick={handleNoteSave}
-              className="inline-flex h-8 items-center rounded-lg bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
+              className="inline-flex h-8 items-center rounded-full bg-slate-900 px-3 text-sm text-white hover:bg-slate-700"
             >
               保存
             </button>

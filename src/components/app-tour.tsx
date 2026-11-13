@@ -6,21 +6,20 @@ import { createPortal } from "react-dom";
 type Step = {
   title: string;
   desc: string;
-  selector?: string; // CSS selector of element to highlight
+  tour?: string;     // data-tour 值：要高亮的元素（不用 title 选，title 会随语言变）
   hint?: string;     // keyboard shortcut or badge text
 };
 
 const STEPS: Step[] = [
   {
-    title: "⌘K 命令面板",
-    desc: "按 ⌘K（Mac）或 Ctrl+K（Windows）随时弹出命令面板，快速跳转任意页面或功能，无需鼠标。",
-    selector: "button[title='命令面板 (⌘K)']",
+    title: "搜索与 ⌘K",
+    desc: "点「搜索」或按 ⌘K（Windows 上是 Ctrl+K）。输入页面名可以直接跳过去，输入其他词就搜全部条目。",
+    tour: "palette",
     hint: "⌘K",
   },
   {
     title: "信号雷达",
     desc: "不是所有动态都值得关注。信号雷达自动识别高价值内容：强执行、强支持、濒危预警、行业研究。",
-    selector: "a[href='/signals']",
   },
   {
     title: "收件箱键盘导航",
@@ -30,18 +29,17 @@ const STEPS: Step[] = [
   {
     title: "周报生成器",
     desc: "在信号雷达页面，筛选好当前关注的信号后，点击「生成周报」即可一键生成 Markdown 格式的情报周报，可直接复制到 Notion / 飞书 / 备忘录。",
-    selector: "button",
     hint: "信号页 → 生成周报",
   },
   {
     title: "辅助功能面板",
-    desc: "点击 A 图标可调整字体大小、切换深色模式、开启高对比度和减少动画，同时支持中英文界面切换。",
-    selector: "button[title='辅助功能 / Accessibility']",
+    desc: "在「设置 → 辅助功能」里可以调字号、切深色模式、开高对比度、减少动画，也能切换中英文。",
+    tour: "settings",
   },
   {
-    title: "关于本项目",
-    desc: "点击「关于」按钮可查看技术栈、数据来源与设计决策说明——这是一个面向政策研究与行业情报的通用监测平台（当前实例聚焦 AI／数字经济政策），作为研究生申请作品集案例。",
-    selector: "button[title='关于本项目']",
+    title: "关于这个项目",
+    desc: "「设置 → 关于这个项目」里写了技术栈、数据来源和设计取舍。这是一个面向政策研究与行业情报的监测平台（当前实例聚焦 AI／数字经济政策），也是研究生申请作品集里的一个案例。",
+    tour: "settings",
   },
 ];
 
@@ -56,6 +54,7 @@ export function AppTour({ open, onClose }: Props) {
   const prevHighlightEl = useRef<Element | null>(null);
 
   const current = STEPS[step];
+  const selector = current.tour ? `[data-tour="${current.tour}"]` : null;
 
   // Highlight target element
   useEffect(() => {
@@ -73,12 +72,13 @@ export function AppTour({ open, onClose }: Props) {
       (prevHighlightEl.current as HTMLElement).style.outlineOffset = "";
     }
 
-    if (current.selector) {
-      const el = document.querySelector(current.selector);
+    if (selector) {
+      const el = document.querySelector(selector);
       if (el) {
-        (el as HTMLElement).style.outline = "3px solid #7c3aed";
+        (el as HTMLElement).style.outline = "3px solid var(--brand)";
         (el as HTMLElement).style.outlineOffset = "3px";
         el.scrollIntoView({ block: "center", behavior: "smooth" });
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- 测量 DOM 位置只能在挂载后做
         setHighlightRect(el.getBoundingClientRect());
         prevHighlightEl.current = el;
       } else {
@@ -89,7 +89,7 @@ export function AppTour({ open, onClose }: Props) {
       setHighlightRect(null);
       prevHighlightEl.current = null;
     }
-  }, [open, step, current.selector]);
+  }, [open, step, selector]);
 
   // Keyboard nav
   useEffect(() => {
@@ -110,8 +110,12 @@ export function AppTour({ open, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, step, onClose]);
 
-  // Reset on open
-  useEffect(() => { if (open) setStep(0); }, [open]);
+  // 每次打开都从第 1 步开始（渲染中对比上一次的 open，不放进 effect）
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setStep(0);
+  }
 
   // Cleanup on unmount
   useEffect(() => () => {

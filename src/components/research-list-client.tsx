@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, use } from "react";
+import { useState, useMemo, useCallback, use, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   getAllPersonalResearch,
@@ -67,6 +67,10 @@ function formatDate(iso: string): string {
 
 const ACTIVE_STATUSES: FollowUpStatus[] = ["to_read", "reading", "to_act"];
 
+function noopSubscribe() {
+  return () => {};
+}
+
 function ResearchListClient({
   starredItemsPromise,
   subscriptionsPromise,
@@ -74,6 +78,7 @@ function ResearchListClient({
   starredItemsPromise: Promise<StarredItem[]>;
   subscriptionsPromise: Promise<SubscriptionItem[]>;
 }) {
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const starredItems = use(starredItemsPromise);
   const subscriptions = use(subscriptionsPromise);
   const [activeTab, setActiveTab] = useState<ResearchTab>("followup");
@@ -129,6 +134,9 @@ function ResearchListClient({
     compare: compareItems.length,
     subscriptions: subscriptions.length,
   };
+
+  // 列表数据全在浏览器本地存储里，服务端读不到：先渲染占位，挂载后再画，避免水合不一致
+  if (!mounted) return <div className="h-48 animate-pulse rounded-2xl bg-slate-100" aria-busy="true" />;
 
   return (
     <div>

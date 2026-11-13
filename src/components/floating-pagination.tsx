@@ -54,6 +54,7 @@ export function FloatingPagination({
       }
     } catch {}
     const startCollapsed = window.innerWidth < 640;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     if (startCollapsed) setCollapsed(true);
     if (!startPos) {
       // 收成浮球时按浮球尺寸（48px 按钮 + 内边距）居中，而不是按展开条的宽度

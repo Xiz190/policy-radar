@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
-export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; url: string; isMock?: boolean }) {
+export function RecaptureButton({ sourceId, url, isMock, className }: { sourceId: string; url: string; isMock?: boolean; className?: string }) {
   const [loading, setLoading] = useState(false);
   const [showTip, setShowTip] = useState(false);
 
@@ -53,7 +53,7 @@ export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; u
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+      className={className ?? "inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"}
     >
       {loading ? "重新抓取中…" : "重新抓取正文"}
     </button>

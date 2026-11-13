@@ -10,20 +10,24 @@ function NavigationProgressInner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    let t1: ReturnType<typeof setTimeout>;
-    let t2: ReturnType<typeof setTimeout>;
-    let t3: ReturnType<typeof setTimeout>;
-
+    let inner: ReturnType<typeof setTimeout> | undefined;
+    // 路由变化时重新播放进度条，就是这个 effect 的目的
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(true);
     setWidth(15);
-    t1 = setTimeout(() => setWidth(40), 80);
-    t2 = setTimeout(() => setWidth(75), 250);
-    t3 = setTimeout(() => {
+    const t1 = setTimeout(() => setWidth(40), 80);
+    const t2 = setTimeout(() => setWidth(75), 250);
+    const t3 = setTimeout(() => {
       setWidth(100);
-      setTimeout(() => { setVisible(false); setWidth(0); }, 250);
+      inner = setTimeout(() => { setVisible(false); setWidth(0); }, 250);
     }, 500);
 
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      if (inner) clearTimeout(inner);
+    };
   }, [pathname, searchParams]);
 
   if (!visible && width === 0) return null;

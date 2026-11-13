@@ -169,6 +169,7 @@ export function MonitorSourceManager({ initialSources }: Props) {
       if (raw) {
         const parsed = JSON.parse(raw) as { ok: number; total: number };
         if (typeof parsed.ok === "number" && typeof parsed.total === "number") {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
           setHealthCache(parsed);
         }
       }
@@ -315,7 +316,7 @@ export function MonitorSourceManager({ initialSources }: Props) {
               {healthCache ? `${healthCache.ok}/${healthCache.total}` : "—"}
             </div>
             {healthCache && (
-              <div className="mt-0.5 text-xs text-slate-400">点击"检查可用性"刷新</div>
+              <div className="mt-0.5 text-xs text-slate-400">点击「检查可用性」刷新</div>
             )}
           </div>
         </div>

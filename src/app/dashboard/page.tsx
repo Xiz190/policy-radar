@@ -344,6 +344,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const abortController = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 开始请求时重置加载状态：这是和网络请求同步，属于 effect 的正当用途
     setLoading(true);
     setError(null);
     async function fetchData() {

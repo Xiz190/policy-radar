@@ -416,3 +416,115 @@ export function getItemsWithNotes(): PersonalResearchItem[] {
     .filter((item) => item.note.trim().length > 0)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
+
+// ============ 2026-11：「保存」类概念合并 ============
+// 以前动态资讯页自己另存了四份本地数据：稍后读、置顶、三个预设标签、便签。它们和「待跟进」重叠，
+// 备注和标签还和详情页各存一份、互相看不见。现在只留「收藏（数据库）+ 待跟进（本地）」两种。
+// 第一次打开网站时把旧数据搬进待跟进，搬完删掉旧键，打上标记不再重复执行。
+const LEGACY_MIGRATED_KEY = "legacy_inbox_data_migrated_v1";
+const LEGACY_KEYS = {
+  readingList: "inbox_reading_list",
+  pinned: "inbox_pinned_items",
+  tags: "inbox_item_tags",
+  notes: "inbox_notes",
+} as const;
+
+/** 动态资讯页旧数据的键是 `${sourceId}__${url}` */
+function splitLegacyKey(k: string): { sourceId: string; url: string } | null {
+  const i = k.indexOf("__");
+  if (i <= 0) return null;
+  return { sourceId: k.slice(0, i), url: k.slice(i + 2) };
+}
+
+/** 旧状态排在新状态前面时才覆盖：待读 < 在读 < 待行动 < 已完成，"none" 最弱 */
+const STATUS_RANK: Record<FollowUpStatus, number> = { none: 0, to_read: 1, reading: 2, to_act: 3, done: 4 };
+
+export function migrateLegacyInboxData(): { moved: number } {
+  if (typeof window === "undefined") return { moved: 0 };
+  const ls = window.localStorage;
+  try {
+    if (ls.getItem(LEGACY_MIGRATED_KEY)) return { moved: 0 };
+  } catch {
+    return { moved: 0 };
+  }
+  const read = <T,>(key: string, fallback: T): T => {
+    try {
+      const raw = ls.getItem(key);
+      return raw ? (JSON.parse(raw) as T) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const readingList = read<string[]>(LEGACY_KEYS.readingList, []);
+  const pinned = read<string[]>(LEGACY_KEYS.pinned, []);
+  const tags = read<Record<string, string[]>>(LEGACY_KEYS.tags, {});
+  const notes = read<Record<string, string>>(LEGACY_KEYS.notes, {});
+
+  const all = getAllFromStorage();
+  const now = new Date().toISOString();
+  let moved = 0;
+  const touch = (k: string) => {
+    const ref = splitLegacyKey(k);
+    if (!ref) return null;
+    const key = itemKey(ref.sourceId, ref.url);
+    all[key] ??= { ...ref, title: "", note: "", followUpStatus: "none", tags: [], createdAt: now, updatedAt: now };
+    all[key].updatedAt = now;
+    return all[key];
+  };
+  const raise = (k: string, status: FollowUpStatus) => {
+    const item = touch(k);
+    if (!item) return;
+    if (STATUS_RANK[status] > STATUS_RANK[item.followUpStatus]) item.followUpStatus = status;
+    moved++;
+  };
+
+  for (const k of readingList) raise(k, "to_read");
+  for (const k of pinned) raise(k, "to_act");
+  for (const [k, list] of Object.entries(tags)) {
+    for (const tag of list ?? []) {
+      if (tag === "需跟进") raise(k, "to_act");
+      else if (tag === "已处理") raise(k, "done");
+      else {
+        const item = touch(k);
+        if (!item) continue;
+        if (!item.tags.includes(tag)) item.tags.push(tag);
+        addTag(tag);
+        moved++;
+      }
+    }
+  }
+  for (const [k, text] of Object.entries(notes)) {
+    const t = (text ?? "").trim();
+    if (!t) continue;
+    const item = touch(k);
+    if (!item) continue;
+    // 两边都写过就拼起来，不丢任何一边
+    item.note = item.note && item.note.trim() !== t ? `${item.note}\n\n${t}` : t;
+    moved++;
+  }
+
+  saveAllToStorage(all);
+  try {
+    for (const key of Object.values(LEGACY_KEYS)) ls.removeItem(key);
+    ls.setItem(LEGACY_MIGRATED_KEY, now);
+  } catch {
+    // 存储不可用时下次再试
+  }
+  return { moved };
+}
+
+/** 搬过来的旧数据只有链接没有标题：页面拿到条目后顺手补上 */
+export function backfillResearchTitles(items: Array<{ sourceId: string; url: string; title: string }>): number {
+  if (typeof window === "undefined" || items.length === 0) return 0;
+  const all = getAllFromStorage();
+  let n = 0;
+  for (const it of items) {
+    const entry = all[itemKey(it.sourceId, it.url)];
+    if (entry && !entry.title && it.title) {
+      entry.title = it.title;
+      n++;
+    }
+  }
+  if (n) saveAllToStorage(all);
+  return n;
+}

@@ -20,7 +20,9 @@ export function DemoModeGate() {
 
   const showToast = useRef<() => void>(() => {});
   const tRef = useRef(t);
-  tRef.current = t;
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     showToast.current = () => {

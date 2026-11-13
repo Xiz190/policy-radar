@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import type { TranslationKey } from "@/lib/i18n";
 import {
-  Bell, BookOpen, ChartColumn, ClipboardList, FolderTree, House, Inbox, Mail, Pin, RadioTower, Rocket, Save, Settings, TrendingUp, type LucideIcon,
+  Bell, BookOpen, ChartColumn, ClipboardList, FolderTree, House, Inbox, Mail, RadioTower, Rocket, Save, Settings, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { isOwnerOnlyPage } from "@/lib/owner-only";
 
@@ -41,8 +41,6 @@ const settingsMenu: MenuEntry[] = [
   { href: "/monitor", label: "系统管理", icon: Settings, desc: "监测任务、来源、关键词、诊断（管理员）" },
   { type: "divider", groupLabel: "设置与帮助" },
   { href: "/stats", label: "个人统计", icon: TrendingUp, desc: "阅读完成率、关键词、最活跃来源" },
-  { href: "/readinglist", label: "稍后读清单", icon: Pin, desc: "在收件箱标记「稍后读」的条目" },
-  { href: "/alerts", label: "提醒规则", icon: Bell, desc: "设置关键词频率提醒规则" },
   { href: "/digest", label: "今日日报预览", icon: Mail, desc: "生成并预览 HTML 邮件摘要" },
   { href: "/casestudy", label: "Case Study", icon: BookOpen, desc: "项目设计与技术决策说明（作品集）" },
   { href: "/settings/data", label: "数据备份/恢复", icon: Save, desc: "导出便签、标签、偏好为 JSON，可再导入" },

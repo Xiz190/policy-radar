@@ -20,8 +20,6 @@ describe("作者专属接口", () => {
       "/api/monitor/items/debug-priority",
       "/api/monitor/runs",
       "/api/monitor/auto-status",
-      "/api/monitor/daily-summary",
-      "/api/proxy/monitor/daily-summary",
       "/api/monitor/handoff",
     ]) {
       expect(decideDemoAccess({ ...visitor, method: "GET", pathname }), pathname).toBe("deny");
@@ -62,7 +60,7 @@ describe("作者专属接口", () => {
 
 describe("作者专属页面", () => {
   it("管理与个人设置页及其子页属于作者专属", () => {
-    for (const p of ["/monitor", "/monitor/sources", "/keywords", "/alerts", "/digest", "/settings/data", "/stats", "/readinglist"]) {
+    for (const p of ["/monitor", "/monitor/sources", "/keywords", "/digest", "/settings/data", "/stats"]) {
       expect(isOwnerOnlyPage(p), p).toBe(true);
     }
   });

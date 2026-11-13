@@ -6,8 +6,10 @@ import Link from "next/link";
 
 const BACKUP_KEYS = [
   "creator-intel-prefs",
-  "inbox_notes",
-  "inbox_item_tags",
+  // 待跟进（含备注、标签、状态）和标签库：2026-11 前这里漏了它们，只备份了动态资讯页旧的便签/标签
+  "policy_personal_research_v1",
+  "policy_research_tags_v1",
+  "inbox_saved_presets",
   "inbox_view_prefs",
   "inbox_search_history",
   "signals_search_history",
@@ -28,12 +30,12 @@ function readLocalData(): BackupData {
 }
 
 function countEntries(data: BackupData) {
-  const notes = (data["inbox_notes"] as Record<string, string> | undefined) ?? {};
-  const tags = (data["inbox_item_tags"] as Record<string, string[]> | undefined) ?? {};
+  const research = Object.values((data["policy_personal_research_v1"] as Record<string, { note?: string; tags?: string[] }> | undefined) ?? {});
+  const tagLib = (data["policy_research_tags_v1"] as unknown[] | undefined) ?? [];
   const history = (data["inbox_search_history"] as string[] | undefined) ?? [];
   return {
-    notes: Object.keys(notes).length,
-    tags: Object.keys(tags).length,
+    notes: research.filter((r) => (r.note ?? "").trim()).length,
+    tags: tagLib.length,
     searchHistory: history.length,
     hasPrefs: !!data["creator-intel-prefs"],
   };
@@ -46,6 +48,7 @@ export default function DataBackupPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     setData(readLocalData());
   }, []);
 
@@ -113,7 +116,7 @@ export default function DataBackupPage() {
           <Link href="/" prefetch={false} className="text-xs text-slate-500 hover:text-slate-700">← 返回首页</Link>
           <h1 className="mt-3 text-2xl font-bold text-slate-900">本地数据备份 / 恢复</h1>
           <p className="mt-1.5 text-sm text-slate-500">
-            便签、标签、偏好等数据存储于浏览器 localStorage。导出备份可在换设备或清除缓存后恢复。
+            待跟进（备注、标签、状态）、标签库、筛选方案和偏好等数据存储于浏览器 localStorage。导出备份可在换设备或清除缓存后恢复。
           </p>
         </div>
 
@@ -123,7 +126,7 @@ export default function DataBackupPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: "条目便签", value: counts.notes },
-              { label: "自定义标签", value: counts.tags },
+              { label: "标签库", value: counts.tags },
               { label: "搜索历史", value: counts.searchHistory },
               { label: "偏好设置", value: counts.hasPrefs ? "已存储" : "默认" },
             ].map((item) => (

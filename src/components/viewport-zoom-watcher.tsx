@@ -9,7 +9,8 @@ import { useEffect } from "react";
 export function ViewportZoomWatcher() {
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+    // 只在触屏生效：电脑触控板捏合也会触发缩放，把悬浮按钮藏掉会让人以为按钮丢了
+    if (!vv || !window.matchMedia("(pointer: coarse)").matches) return;
     const root = document.documentElement;
     const update = () => {
       if (vv.scale > 1.05) root.dataset.zoomed = "";

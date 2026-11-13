@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n";
 import { pickLens } from "@/lib/localized-fields";
 import { categoryDisplayLabel, categoryTooltip } from "@/lib/monitor/content-meta";
 import {
-  ArrowLeftRight, Check, ChevronDown, Circle, ClipboardList, Clock, Dices, Ellipsis, Flame, Landmark, Library, Lightbulb, Link as LinkIcon, MapPin, RadioTower, Save, PanelRight, SlidersHorizontal, Star, Tag, Target, Timer, TriangleAlert,
+  ArrowLeftRight, Check, ChevronDown, Circle, ClipboardList, Clock, Dices, Ellipsis, Flame, Landmark, Library, Lightbulb, Link as LinkIcon, RadioTower, Save, PanelRight, SlidersHorizontal, Star, Tag, Target, Timer, TriangleAlert,
 } from "lucide-react";
 import { getPriorityMeta } from "@/lib/monitor/priority-levels";
 import { formatDateTimeFull } from "@/lib/date-utils";
@@ -57,8 +57,26 @@ import { generateShareCard, downloadBlob } from "@/lib/share-card";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { useDemoVisitor } from "@/hooks/use-demo-visitor";
 import { notifyDemoReadonly } from "@/lib/demo-readonly";
+import {
+  backfillResearchTitles,
+  bulkSetFollowUpStatus,
+  FOLLOW_UP_STATUS_LABELS,
+  FOLLOW_UP_STATUS_OPTIONS,
+  getAllPersonalResearch,
+  migrateLegacyInboxData,
+  setFollowUpStatus,
+  setNote,
+  type FollowUpStatus,
+  type PersonalResearchItem,
+} from "@/lib/personal-research";
 
 const SCROLL_KEY = "inbox-scroll-y";
+
+function indexResearch(): Record<string, PersonalResearchItem> {
+  const map: Record<string, PersonalResearchItem> = {};
+  for (const r of getAllPersonalResearch()) map[`${r.sourceId}__${r.url}`] = r;
+  return map;
+}
 
 function RelatedItems({ sourceId, currentUrl, departmentName }: { sourceId: string; currentUrl: string; departmentName: string }) {
   const [items, setItems] = useState<{ url: string; title: string; listPublishedAt: string }[]>([]);
@@ -192,6 +210,7 @@ export default function InboxPage() {
   useEffect(() => {
     try {
       const prefs = JSON.parse(localStorage.getItem("inbox_view_prefs") ?? "{}");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
       if (prefs.dateField) setDateField(prefs.dateField);
       if (prefs.sort) setSort(prefs.sort);
       if (prefs.region) setRegion(prefs.region);
@@ -268,26 +287,22 @@ export default function InboxPage() {
     try { localStorage.setItem("inbox_view_prefs", JSON.stringify({ sort, region, dateField, density })); } catch {}
   }, [sort, region, dateField, density]);
 
-  // 条目自定义标签（localStorage 持久化）
-  const [itemTags, setItemTags] = useState<Record<string, string[]>>({});
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("inbox_item_tags");
-      if (raw) setItemTags(JSON.parse(raw));
-    } catch {}
-  }, []);
-  function saveItemTags(key: string, tags: string[]) {
-    setItemTags((prev) => {
-      const next = { ...prev };
-      if (tags.length > 0) next[key] = tags;
-      else delete next[key];
-      try { localStorage.setItem("inbox_item_tags", JSON.stringify(next)); } catch {}
-      return next;
-    });
+  // 个人处理只有「待跟进」一套（2026-11 合并：原来的稍后读 / 置顶 / 动态资讯标签 / 动态资讯便签都并进来了，
+  // 备注和详情页共用一份）。条目列表要等数据加载完才渲染，所以这里直接在初始化时读本地存储不会造成水合不一致。
+  const [research, setResearch] = useState<Record<string, PersonalResearchItem>>(() => {
+    if (typeof window === "undefined") return {};
+    migrateLegacyInboxData();
+    return indexResearch();
+  });
+  const refreshResearch = useCallback(() => setResearch(indexResearch()), []);
+  function setItemFollowUp(item: { sourceId: string; url: string; title: string }, status: FollowUpStatus) {
+    setFollowUpStatus(item.sourceId, item.url, item.title, status);
+    refreshResearch();
   }
-  const TAG_PRESETS = ["需跟进", "资料", "已处理"] as const;
-  const tagFilterItems = Object.keys(itemTags);
-  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
+  function saveItemNote(item: { sourceId: string; url: string; title: string }, text: string) {
+    setNote(item.sourceId, item.url, item.title, text);
+    refreshResearch();
+  }
 
   // 批量选择
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -299,40 +314,6 @@ export default function InboxPage() {
     });
   }
   function clearSelection() { setSelectedKeys(new Set()); }
-
-  // 置顶条目（localStorage 持久化）
-  const [pinnedItems, setPinnedItems] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("inbox_pinned_items");
-      if (raw) setPinnedItems(new Set(JSON.parse(raw) as string[]));
-    } catch {}
-  }, []);
-  function togglePinned(key: string) {
-    setPinnedItems((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      try { localStorage.setItem("inbox_pinned_items", JSON.stringify([...next])); } catch {}
-      return next;
-    });
-  }
-
-  // 稍后读清单（localStorage 持久化）
-  const [readingList, setReadingList] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("inbox_reading_list");
-      if (raw) setReadingList(new Set(JSON.parse(raw) as string[]));
-    } catch {}
-  }, []);
-  function toggleReadingList(key: string) {
-    setReadingList((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      try { localStorage.setItem("inbox_reading_list", JSON.stringify([...next])); } catch {}
-      return next;
-    });
-  }
 
   // 智能建议条 & 今日焦点条：每次加载新数据后重置 dismissed 状态
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
@@ -361,24 +342,6 @@ export default function InboxPage() {
     const next = savedPresets.filter((p) => p.name !== name);
     setSavedPresets(next);
     try { localStorage.setItem("inbox_saved_presets", JSON.stringify(next)); } catch {}
-  }
-
-  // 条目便签（localStorage 持久化）
-  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("inbox_notes");
-      if (raw) setItemNotes(JSON.parse(raw));
-    } catch {}
-  }, []);
-  function saveNote(key: string, text: string) {
-    setItemNotes((prev) => {
-      const next = { ...prev };
-      if (text.trim()) next[key] = text;
-      else delete next[key];
-      try { localStorage.setItem("inbox_notes", JSON.stringify(next)); } catch {}
-      return next;
-    });
   }
 
   // 用 ref 保存 sourcesTree / categoriesWithCounts，避免 state 变化触发循环
@@ -569,21 +532,12 @@ export default function InboxPage() {
     return list;
   }, [items, sort, onlyFollowed, hasSubscriptions, getItemFollowInfo]);
 
-  const tagFilteredItems = useMemo(() => {
-    let list = activeTagFilter
-      ? displayItems.filter((item) => {
-          const key = `${item.sourceId}__${item.url}`;
-          return (itemTags[key] ?? []).includes(activeTagFilter);
-        })
-      : displayItems;
-    // Pinned items float to top
-    if (pinnedItems.size > 0) {
-      const pinned = list.filter((i) => pinnedItems.has(`${i.sourceId}__${i.url}`));
-      const rest = list.filter((i) => !pinnedItems.has(`${i.sourceId}__${i.url}`));
-      list = [...pinned, ...rest];
-    }
-    return list;
-  }, [displayItems, activeTagFilter, itemTags, pinnedItems]);
+  // 以前这里按动态资讯自带的标签筛选、把置顶条目顶上去；2026-11 这两样并进「待跟进」后不再需要
+  const tagFilteredItems = displayItems;
+  // 旧数据搬过来时只有链接，列表拿到条目后补上标题（待跟进页要显示）
+  useEffect(() => {
+    backfillResearchTitles(displayItems);
+  }, [displayItems]);
 
   const followedCount = useMemo(() => {
     if (!hasSubscriptions) return 0;
@@ -2172,35 +2126,6 @@ export default function InboxPage() {
                 ))}
               </div>
             )}
-            {/* 标签筛选条：有已打标签的条目时显示 */}
-            {tagFilterItems.length > 0 && (
-              <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-slate-400">{t("inbox.tag-filter")}</span>
-                {TAG_PRESETS.filter((t) => tagFilterItems.some((k) => (itemTags[k] ?? []).includes(t))).map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
-                    className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
-                      activeTagFilter === tag
-                        ? "border-violet-500 bg-violet-50 text-violet-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-                {activeTagFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTagFilter(null)}
-                    className="text-xs text-slate-400 hover:text-slate-600"
-                  >
-                    {t("inbox.clear-x")}
-                  </button>
-                )}
-              </div>
-            )}
             {!loading && items.length === 0 && !lastApiError ? (
               <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
                 {t("inbox.debug.returned")} <strong>{lastApiReturned ?? "?"}</strong> · {t("inbox.debug.total")} <strong>{lastApiTotal ?? "?"}</strong>
@@ -2372,8 +2297,8 @@ export default function InboxPage() {
                                         keywordScore={item.keywordScore}
                                         showLegacyTag
                                       />
-                                      {pinnedItems.has(key) && (
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">{t("inbox.item.pinned")}</span>
+                                      {research[key] && research[key].followUpStatus !== "none" && (
+                                        <span className="rounded-full bg-[var(--brand-tint)] px-2 py-0.5 font-medium text-[var(--brand)]">{FOLLOW_UP_STATUS_LABELS[research[key].followUpStatus]}</span>
                                       )}
                                       {subscriptionsLoaded && followInfo.isFollowed && (
                                         <SubscriptionBadge matches={followInfo.allMatches} compact />
@@ -2425,8 +2350,8 @@ export default function InboxPage() {
                                       >
                                         <Highlight text={item.title} query={q} />
                                       </Link>
-                                      {itemNotes[key] && (
-                                        <span className="ml-1 align-middle rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500" title={itemNotes[key]}>{t("inbox.item.note")}</span>
+                                      {research[key]?.note && (
+                                        <span className="ml-1 align-middle rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500" title={research[key]?.note}>{t("inbox.item.note")}</span>
                                       )}
                                     </h3>
                                     {/* 护城河在扫读处露出：与首页/伴侣版同一写法 */}
@@ -2724,7 +2649,7 @@ export default function InboxPage() {
                                       {t("inbox.x.period")}
                                     </div>
                                   )}
-                                {/* 一键分享卡 + 稍后读 */}
+                                {/* 一键分享卡 + 收藏/待跟进 */}
                                 <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
@@ -2747,17 +2672,11 @@ export default function InboxPage() {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => toggleReadingList(key)}
-                                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${readingList.has(key) ? "border-[var(--brand-border)] bg-[var(--brand-tint)] text-[var(--brand)]" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}
+                                    onClick={() => setItemFollowUp(item, research[key] && research[key].followUpStatus !== "none" ? "none" : "to_read")}
+                                    aria-pressed={Boolean(research[key] && research[key].followUpStatus !== "none")}
+                                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${research[key] && research[key].followUpStatus !== "none" ? "border-[var(--brand-border)] bg-[var(--brand-tint)] text-[var(--brand)]" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}
                                   >
-                                    {readingList.has(key) ? t("inbox.x.later-on") : t("inbox.x.later")}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => togglePinned(key)}
-                                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${pinnedItems.has(key) ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}
-                                  >
-                                    {pinnedItems.has(key) ? t("inbox.x.pinned-on") : t("inbox.item.pinned")}
+                                    {research[key] && research[key].followUpStatus !== "none" ? t("tabs.item.added-read") : t("tabs.item.add-read")}
                                   </button>
                                   <button
                                     type="button"
@@ -2786,53 +2705,39 @@ export default function InboxPage() {
                                     {t("inbox.x.card")}
                                   </button>
                                 </div>
-                                {/* 条目自定义标签 */}
+                                {/* 待跟进状态（原来的三个预设标签里「需跟进」「已处理」就是状态，2026-11 合并） */}
                                 <div
                                   className="mt-2 flex flex-wrap items-center gap-1.5"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <span className="text-xs text-slate-500">{t("inbox.side.cur.tag")}</span>
-                                  {TAG_PRESETS.map((tag) => {
-                                    const currentTags = itemTags[key] ?? [];
-                                    const active = currentTags.includes(tag);
+                                  <span className="text-xs text-slate-500">{t("qa.btn.follow-up")}</span>
+                                  {FOLLOW_UP_STATUS_OPTIONS.filter((o) => o.value !== "none").map((opt) => {
+                                    const active = research[key]?.followUpStatus === opt.value;
                                     return (
                                       <button
-                                        key={tag}
+                                        key={opt.value}
                                         type="button"
-                                        onClick={() => {
-                                          const next = active
-                                            ? currentTags.filter((t) => t !== tag)
-                                            : [...currentTags, tag];
-                                          saveItemTags(key, next);
-                                        }}
+                                        onClick={() => setItemFollowUp(item, active ? "none" : opt.value)}
+                                        aria-pressed={active}
                                         className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
                                           active
-                                            ? "border-violet-400 bg-violet-50 text-violet-700"
+                                            ? "border-[var(--brand-border)] bg-[var(--brand-tint)] text-[var(--brand)]"
                                             : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
                                         }`}
                                       >
-                                        {active ? "✓ " : ""}{tag}
+                                        {opt.label}
                                       </button>
                                     );
                                   })}
-                                  {(itemTags[key] ?? []).length > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => saveItemTags(key, [])}
-                                      className="text-[11px] text-slate-300 hover:text-slate-500"
-                                    >
-                                      {t("inbox.clear-x")}
-                                    </button>
-                                  )}
                                 </div>
-                                {/* 条目便签 */}
+                                {/* 条目便签（和详情页的备注是同一份） */}
                                 <div
                                   className="mt-2"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <textarea
-                                    value={itemNotes[key] ?? ""}
-                                    onChange={(e) => saveNote(key, e.target.value)}
+                                    value={research[key]?.note ?? ""}
+                                    onChange={(e) => saveItemNote(item, e.target.value)}
                                     placeholder={t("inbox.x.note-ph")}
                                     rows={2}
                                     className="w-full resize-none rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-700 outline-none placeholder:text-slate-300 focus:border-sky-300 focus:ring-1 focus:ring-sky-200"
@@ -2977,35 +2882,15 @@ export default function InboxPage() {
             <button
               type="button"
               onClick={() => {
-                for (const k of Array.from(selectedKeys)) toggleReadingList(k);
+                const byKey = new Map(displayItems.map((i) => [`${i.sourceId}__${i.url}`, i]));
+                const picked = Array.from(selectedKeys).map((k) => byKey.get(k)).filter((i): i is InboxItem => Boolean(i));
+                bulkSetFollowUpStatus(picked.map((i) => ({ sourceId: i.sourceId, url: i.url, title: i.title })), "to_read");
+                refreshResearch();
                 clearSelection();
               }}
-              className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 transition hover:bg-sky-100"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              {t("inbox.x.later")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                for (const k of Array.from(selectedKeys)) togglePinned(k);
-                clearSelection();
-              }}
-              className="rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-100"
-            >
-              <MapPin className="h-3.5 w-3.5" aria-hidden />{t("inbox.item.pinned")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const keys = Array.from(selectedKeys);
-                for (const k of keys) {
-                  saveItemTags(k, TAG_PRESETS.includes("需跟进") ? ["需跟进"] : []);
-                }
-                clearSelection();
-              }}
-              className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
-            >
-              {t("inbox.bulk.followup")}
+              {t("tabs.item.add-read")}
             </button>
             <div className="mx-1 h-4 w-px bg-slate-200" />
             <button

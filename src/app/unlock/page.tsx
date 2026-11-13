@@ -19,6 +19,7 @@ export default function UnlockPage() {
 
   useEffect(() => {
     const raw = new URLSearchParams(window.location.search).get("next");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     if (raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")) setNext(raw);
   }, []);
 

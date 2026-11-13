@@ -2910,7 +2910,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   },
   {
     id: "miit_zcwj_bg",
-    enabled: true,
+    // 2026-11-03 停用：自 9 月起从未扫到条目，且与音乐文化政策关联弱
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "miit_list",
@@ -2994,7 +2995,8 @@ export const DEFAULT_MONITOR_SOURCES: MonitorSourceConfig[] = [
   },
   {
     id: "miit_zcwj_jytafw",
-    enabled: true,
+    // 2026-11-03 停用：自 9 月起从未扫到条目，且与音乐文化政策关联弱
+    enabled: false,
     autoMonitor: true,
     isKey: true,
     type: "miit_list",

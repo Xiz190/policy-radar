@@ -27,7 +27,7 @@ import {
   type MatchedSubscription,
 } from "@/lib/subscription-utils";
 import {
-  Clock, Hand, Newspaper, Printer, RadioTower, RefreshCw, Search, Target,
+  Clock, Hand, Newspaper, Printer, RefreshCw, Search, Target,
 } from "lucide-react";
 
 type SignalItem = {
@@ -75,13 +75,6 @@ function summarizeTitle(title: string, maxLen = 56): string {
 function formatDate(iso: string): string {
   if (!iso) return "";
   return iso.split("T")[0];
-}
-
-function isToday(iso: string): boolean {
-  if (!iso) return false;
-  const dateStr = iso.split("T")[0];
-  const today = new Date().toISOString().split("T")[0];
-  return dateStr === today;
 }
 
 function getTopSignalCategory(
@@ -302,19 +295,6 @@ export default function SignalsPage() {
     return items.filter((item) => getItemMatches(item).length > 0).slice(0, 6);
   }, [items, subscribedGroups, getItemMatches]);
 
-  const stats = useMemo(() => {
-    const todayCount = items.filter((i) => isToday(i.firstSeenAt || i.listPublishedAt)).length;
-    const coreCount = items.filter(
-      (i) => normalizePriorityLevel(i.importanceLevel) === "核心关注",
-    ).length;
-    const highlightCount = items.filter(
-      (i) => normalizePriorityLevel(i.importanceLevel) === "重点内容",
-    ).length;
-    const totalCount = items.length;
-
-    return { todayCount, coreCount, highlightCount, totalCount };
-  }, [items]);
-
   const signalDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const cat of SIGNAL_ORDER) counts[cat] = 0;
@@ -465,22 +445,16 @@ export default function SignalsPage() {
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         {/* 页头 */}
         <section className="mb-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <RadioTower className="h-4 w-4" aria-hidden />
-                <span>信号雷达</span>
-              </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                发现动态中的高价值信号
-              </h1>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">信号雷达</h1>
               <p className="mt-2 text-sm text-slate-500">
-                自动识别内容中的强执行、强支持、濒危预警、行业研究等关键信号，帮你快速判断政策价值
+                自动识别强执行、强支持、风险预警、试点探索等信号，帮你快速判断政策价值
               </p>
             </div>
             <Link
               href="/inbox"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             >
               去动态资讯
               <span className="text-slate-400">→</span>
@@ -488,13 +462,13 @@ export default function SignalsPage() {
           </div>
 
           {showGuide && (
-          <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-500">
-            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 shadow-sm">
+          <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex items-start gap-3">
-                <Hand className="h-6 w-6" aria-hidden />
+                <Hand className="h-5 w-5 text-slate-400" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-amber-800">欢迎来到信号雷达</div>
-                  <p className="mt-1 text-xs text-amber-700">
+                  <div className="text-sm font-medium text-slate-800">欢迎来到信号雷达</div>
+                  <p className="mt-1 text-xs text-slate-500">
                     这里帮你快速发现高价值情报信号。关注来源或关键词后，匹配的内容会优先展示。
                   </p>
                 </div>
@@ -504,7 +478,7 @@ export default function SignalsPage() {
                     setShowGuide(false);
                     localStorage.setItem("signals_guide_seen", "true");
                   }}
-                  className="shrink-0 text-amber-600 hover:text-amber-800 transition"
+                  className="shrink-0 text-slate-400 transition hover:text-slate-600"
                 >
                   ×
                 </button>
@@ -512,38 +486,6 @@ export default function SignalsPage() {
             </div>
           </div>
         )}
-
-        {/* 核心数字概览 */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">今日新增信号</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">
-                {stats.todayCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">条新动态</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">核心关注</div>
-              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]">
-                {stats.coreCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">条最高优先级</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">重点内容</div>
-              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]/70">
-                {stats.highlightCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">条高优先级</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">情报总数</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">
-                {stats.totalCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">条带信号内容</div>
-            </div>
-          </div>
         </section>
 
         {/* 你的关注信号 */}
@@ -633,42 +575,42 @@ export default function SignalsPage() {
           </section>
         )}
 
-        {/* 信号类型分布 */}
-        <section className="mb-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">信号类型分布</h2>
-            {selectedSignalTypes.size > 0 && (
-              <button
-                type="button"
-                onClick={() => setSelectedSignalTypes(new Set())}
-                className="text-xs text-slate-500 hover:text-slate-700"
-              >
-                清空筛选
-              </button>
-            )}
+        {/* 信号类型筛选 */}
+        <section className="mb-6">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-slate-900">按信号类型筛选</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400">按最近 {items.length} 条统计</span>
+              {selectedSignalTypes.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedSignalTypes(new Set())}
+                  className="text-xs text-slate-500 hover:text-slate-700"
+                >
+                  清空筛选
+                </button>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="flex flex-wrap gap-2">
             {signalDistribution.map((sg) => {
-              const style = getCategoryStyle(sg.category);
               const isSelected = selectedSignalTypes.has(sg.category);
               return (
                 <button
                   key={sg.category}
                   type="button"
                   onClick={() => toggleSignalType(sg.category)}
-                  className={`rounded-2xl border p-4 text-left transition ${
+                  title={sg.tooltip || sg.valueDesc}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
                     isSelected
-                      ? `${style.chip} border-2 shadow-sm`
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+                      ? "border-[var(--brand-border)] bg-[var(--brand-tint)] font-medium text-[var(--brand)]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                   }`}
                 >
-                  <div className="text-2xl font-semibold">{sg.count}</div>
-                  <div className={`mt-1 text-sm font-medium ${isSelected ? "" : "text-slate-800"}`}>
-                    {sg.displayLabel}
-                  </div>
-                  <div className={`mt-0.5 text-xs ${isSelected ? "opacity-80" : "text-slate-500"}`}>
-                    {sg.valueDesc}
-                  </div>
+                  <span>{sg.displayLabel}</span>
+                  <span className={`tabular-nums ${isSelected ? "text-[var(--brand)]" : "text-slate-400"}`}>
+                    {sg.count}
+                  </span>
                 </button>
               );
             })}
@@ -774,8 +716,8 @@ export default function SignalsPage() {
             </div>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-slate-900">信号列表</h2>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+              <h2 className="shrink-0 whitespace-nowrap text-base font-semibold text-slate-900">信号列表</h2>
+              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                 {filteredItems.length} 条
               </span>
               {isFetching && (

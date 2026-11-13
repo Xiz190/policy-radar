@@ -122,11 +122,17 @@ function generateMarkdown(items: SignalItem[]): string {
   return lines.join("\n");
 }
 
+// 标题来自外部网站：先转义成纯文本，再做 Markdown 加粗/链接替换，避免抓来的 HTML 被执行
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 // 简单的 Markdown → JSX 预览（只处理本周报用到的子集）
 function DigestPreview({ md }: { md: string }) {
   return (
     <div className="space-y-1 font-sans text-sm leading-7 text-slate-800">
-      {md.split("\n").map((line, i) => {
+      {md.split("\n").map((raw, i) => {
+        const line = escapeHtml(raw);
         if (line.startsWith("# ")) return <h1 key={i} className="text-xl font-bold text-slate-900">{line.slice(2)}</h1>;
         if (line.startsWith("## ")) return <h2 key={i} className="mt-4 text-base font-semibold text-slate-800 border-b border-slate-100 pb-1">{line.slice(3)}</h2>;
         if (line === "---") return <hr key={i} className="my-3 border-slate-200" />;
@@ -138,7 +144,7 @@ function DigestPreview({ md }: { md: string }) {
         }
         // indent (sub-line of list item)
         if (line.startsWith("  来源：")) {
-          const content = line.trim().replace(/\[原文\]\((.+?)\)/, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-600 underline">原文 ↗</a>');
+          const content = line.trim().replace(/\[原文\]\((https?:\/\/[^)\s]+)\)/, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-600 underline">原文 ↗</a>');
           return <div key={i} className="ml-8 text-xs text-slate-500" dangerouslySetInnerHTML={{ __html: content }} />;
         }
         // inline bold anywhere
@@ -156,10 +162,17 @@ export function WeeklyDigestModal({ open, onClose, items }: Props) {
 
   const markdown = useMemo(() => generateMarkdown(items), [items]);
 
+  // 打开时重置到「预览」：渲染中对比上一次的 open；showModal/close 是操作 DOM，留在 effect
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) { setTab("preview"); setCopied(false); }
+  }
+
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    if (open) { el.showModal(); setTab("preview"); setCopied(false); }
+    if (open) el.showModal();
     else { try { el.close(); } catch {} }
   }, [open]);
 

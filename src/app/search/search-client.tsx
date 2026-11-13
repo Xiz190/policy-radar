@@ -195,6 +195,7 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 开始请求时重置加载状态：这是和网络请求同步，属于 effect 的正当用途
     if (committed) search(committed, page, tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [committed, page, tab]);

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useEffect } from "react";
 
@@ -32,16 +33,16 @@ export default function Error({
           <button
             type="button"
             onClick={reset}
-            className="w-full rounded-full bg-violet-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-violet-700 sm:w-auto"
+            className="w-full rounded-full bg-[var(--brand)] px-6 py-2.5 text-sm font-medium text-white transition hover:opacity-90 sm:w-auto"
           >
             重试
           </button>
-          <a
+          <Link
             href="/"
             className="w-full rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 sm:w-auto"
           >
             返回首页
-          </a>
+          </Link>
         </div>
       </div>
     </div>

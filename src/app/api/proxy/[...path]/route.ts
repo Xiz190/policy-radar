@@ -38,7 +38,6 @@ async function handleRequest(request: Request): Promise<Response> {
     "/api/monitor/subscriptions": "./../../monitor/subscriptions/route",
     "/api/monitor/keywords": "./../../monitor/keywords/route",
     "/api/monitor/keywords/clean": "./../../monitor/keywords/clean/route",
-    "/api/monitor/daily-summary": "./../../monitor/daily-summary/route",
   };
   
   apiLog.debug("代理请求入口", {

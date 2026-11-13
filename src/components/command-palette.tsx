@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { usePrefs } from "@/contexts/prefs-context";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import {
-  AlarmClock, Bell, BookOpen, ChartColumn, CircleCheck, ClipboardList, Clock, Flame, House, Inbox, Languages, Mail, Mailbox, Moon, Pin, RadioTower, Search, Settings, Star, TrendingUp, type LucideIcon,
+  AlarmClock, Bell, BookOpen, ChartColumn, CircleCheck, ClipboardList, Clock, Flame, House, Inbox, Languages, Mail, Mailbox, Moon, RadioTower, Search, Settings, Star, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { useDemoVisitor } from "@/hooks/use-demo-visitor";
 import { isOwnerOnlyPage } from "@/lib/owner-only";
@@ -57,6 +57,7 @@ function useRecentItems(onClose: () => void): CmdItem[] {
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("inbox_recent_items") ?? "[]") as RecentEntry[];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
       setRecent(stored.slice(0, 5));
     } catch {}
   }, []);
@@ -88,9 +89,7 @@ function useCommandItems(onClose: () => void): CmdItem[] {
   return [
     // 导航
     { id: "search",    type: "nav",    icon: Search, label: "全局搜索",     desc: "跨收件箱与信号雷达搜索", href: "/search", action: () => go("/search"),   keywords: "search 搜索 全局 查找" },
-    { id: "readlist",  type: "nav",    icon: Pin, label: "稍后读清单",   desc: "查看标记的待读条目",     href: "/readinglist", action: () => go("/readinglist"), keywords: "reading list 稍后读 书签" },
     { id: "digest",    type: "nav",    icon: Mail, label: "今日日报预览",  desc: "生成 HTML 邮件摘要",     href: "/digest", action: () => go("/digest"),     keywords: "digest 日报 邮件 email" },
-    { id: "alerts",    type: "nav",    icon: Bell, label: "提醒规则",     desc: "设置关键词提醒阈值",     href: "/alerts", action: () => go("/alerts"),     keywords: "alerts 提醒 规则 通知" },
     { id: "casestudy", type: "nav",    icon: BookOpen, label: "Case Study",   desc: "项目设计说明（作品集）", href: "/casestudy", action: () => go("/casestudy"),  keywords: "case study 作品集 portfolio" },
     { id: "stats",     type: "nav",    icon: TrendingUp, label: "个人统计",     desc: "阅读率、关键词热度等",   href: "/stats", action: () => go("/stats"),      keywords: "stats 统计 阅读率 个人" },
     { id: "home",      type: "nav",    icon: House, label: "我的工作台",   desc: "回到首页总览",          href: "/", action: () => go("/"),         keywords: "home workspace 工作台" },
@@ -146,6 +145,7 @@ export function CommandPalette({ open, onClose }: Props) {
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const paletteRouter = useRouter();
   // 区分「键盘触发的高亮变化」和「鼠标悬停触发的」：
   // 只有键盘那次才该滚动。否则会形成回环——悬停改高亮→滚动→新元素移到鼠标下→
   // 又触发悬停→再滚动，视觉上就是抖。
@@ -173,23 +173,38 @@ export function CommandPalette({ open, onClose }: Props) {
   // Recent items only shown when no query
   const visibleRecent = !query.trim() ? recentItems : [];
 
+  // 输入了文字时，第一项永远是「在全部条目里搜索」——页头的搜索按钮和 ⌘K 合并后，搜内容也走这里
+  const q = query.trim();
+  const searchAll: CmdItem[] = q
+    ? [{
+        id: "search-all",
+        type: "nav",
+        icon: Search,
+        label: `在全部条目里搜索「${q}」`,
+        desc: "标题、来源和正文",
+        href: `/search?q=${encodeURIComponent(q)}`,
+        action: () => { paletteRouter.push(`/search?q=${encodeURIComponent(q)}`); onClose(); },
+      }]
+    : [];
+
   // 弹窗打开时锁住背景滚动：否则鼠标不在列表上时，滚轮会直接滚穿到背后的页面
   useScrollLock(open);
 
-  // flat ordered list for keyboard nav (recent first, then nav, then actions)
-  const orderedFiltered = [...visibleRecent, ...navItems, ...actionItems];
+  // flat ordered list for keyboard nav (search-all first, then recent, nav, actions)
+  const orderedFiltered = [...searchAll, ...visibleRecent, ...navItems, ...actionItems];
 
-  useEffect(() => {
+  // 每次打开都从空白开始：在渲染中对比上一次的 open（React 推荐的「属性变化时调整状态」写法），不放进 effect
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQuery("");
       setActiveIdx(0);
-      requestAnimationFrame(() => inputRef.current?.focus());
     }
-  }, [open]);
-
+  }
   useEffect(() => {
-    setActiveIdx(0);
-  }, [query]);
+    if (open) requestAnimationFrame(() => inputRef.current?.focus());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -257,7 +272,7 @@ export function CommandPalette({ open, onClose }: Props) {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setActiveIdx(0); }}
             placeholder="跳转到页面、快速操作…"
             className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
           />
@@ -291,6 +306,7 @@ export function CommandPalette({ open, onClose }: Props) {
                   <li className="my-1 border-t border-slate-100" />
                 </>
               )}
+              {searchAll.map((item) => renderItem(item, 0))}
               {visibleRecent.length > 0 && (
                 <>
                   <li className="px-4 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">最近访问</li>

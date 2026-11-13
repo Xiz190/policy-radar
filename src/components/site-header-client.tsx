@@ -17,7 +17,7 @@ import { AboutModal } from "@/components/about-modal";
 import { AppTour } from "@/components/app-tour";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import {
-  Bell, Info, Map, Settings,
+  Accessibility, Bell, Info, Keyboard, Map, Search, Settings,
 } from "lucide-react";
 
 export function SiteHeaderClient() {
@@ -32,6 +32,15 @@ export function SiteHeaderClient() {
   const [tourOpen, setTourOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [a11yOpen, setA11yOpen] = useState(false);
+  const [a11yTop, setA11yTop] = useState<number | null>(null);
+  const closeA11y = useCallback(() => setA11yOpen(false), []);
+  // 手机上面板贴在顶栏下方、左右留 16px；桌面贴设置按钮右下
+  const openA11y = useCallback(() => {
+    const r = menuRef.current?.getBoundingClientRect();
+    setA11yTop(r && window.matchMedia("(max-width: 639px)").matches ? r.bottom + 8 : null);
+    setA11yOpen(true);
+  }, []);
   const prefs = usePrefs();
   const T = useT(prefs.language);
 
@@ -188,28 +197,19 @@ export function SiteHeaderClient() {
             ))}
           </nav>
 
-          {/* ⌘K trigger */}
+          {/* 搜索 + 命令面板合成一个入口：面板里能跳页面，输入文字也能直接搜全部条目 */}
           <button
             type="button"
             onClick={openCmd}
-            title="命令面板 (⌘K)"
-            className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 transition hover:bg-slate-50 sm:flex"
+            data-tour="palette"
+            aria-label="搜索（⌘K）"
+            title="搜索页面和条目（⌘K）"
+            className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-2 text-sm text-slate-500 transition hover:bg-slate-50 sm:px-3"
           >
-            <span>⌘K</span>
+            <Search className="h-4 w-4" aria-hidden />
+            <span className="hidden text-slate-500 sm:inline">搜索</span>
+            <kbd className="hidden rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px] text-slate-400 sm:inline">⌘K</kbd>
           </button>
-
-          {/* About */}
-          <button
-            type="button"
-            onClick={() => setAboutOpen(true)}
-            title="关于本项目"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm text-slate-500 transition hover:bg-slate-50"
-          >
-            <Info className="h-4 w-4" aria-hidden />
-          </button>
-
-          {/* Accessibility panel */}
-          <AccessibilityPanel />
 
           {/* Notifications */}
           <Link
@@ -232,6 +232,8 @@ export function SiteHeaderClient() {
             <button
               type="button"
               onClick={handleMenuToggle}
+              data-tour="settings"
+              aria-expanded={menuOpen}
               className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 sm:px-3"
             >
               <Settings className="h-4 w-4" aria-hidden />
@@ -247,9 +249,34 @@ export function SiteHeaderClient() {
               </svg>
             </button>
 
+            <AccessibilityPanel open={a11yOpen} onClose={closeA11y} mobileTop={a11yTop} />
+
             {menuOpen && (
               <div className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
                 <div className="py-1">
+                  {[
+                    { key: "about", icon: Info, label: "关于这个项目", desc: "技术栈、数据来源和设计取舍" },
+                    { key: "a11y", icon: Accessibility, label: "辅助功能", desc: "字号、深色模式、对比度、语言" },
+                    { key: "keys", icon: Keyboard, label: "键盘快捷键", desc: "按 ? 也能打开" },
+                  ].map((it) => (
+                    <button
+                      key={it.key}
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        if (it.key === "about") setAboutOpen(true);
+                        else if (it.key === "a11y") openA11y();
+                        else setShortcutsOpen(true);
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <it.icon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                      <div className="min-w-0 flex-1 text-left">
+                        <div className="font-medium text-slate-900">{it.label}</div>
+                        <div className="text-xs text-slate-500">{it.desc}</div>
+                      </div>
+                    </button>
+                  ))}
                   <button
                     type="button"
                     onClick={() => { setMenuOpen(false); setTourOpen(true); }}

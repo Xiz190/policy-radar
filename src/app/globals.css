@@ -237,86 +237,104 @@ html[data-reduced-motion="true"] *::after {
 
 html.dark {
   color-scheme: dark;
+  /* 编辑台系统的深色版：暖炭黑底 + 暖灰字，和浅色的暖纸底同一套色相；品牌色用冷钢蓝提亮一档保证在深底上可读 */
+  --brand: #5fa3c4;
+  --brand-tint: #15252d;
+  --brand-border: #2f4b58;
+  --background: #161512;
+  --foreground: #eeebe4;
+  --card: #1f1d19;
+  --card-foreground: #eeebe4;
+  --muted: #262420;
+  --muted-foreground: #8c877c;
+  --border: #33302a;
+  --input: #3a3730;
+  --ring: #eeebe4;
+  --primary: #eeebe4;
+  --primary-foreground: #161512;
+  --secondary: #262420;
+  --secondary-foreground: #eeebe4;
 }
 
-/* backgrounds */
-html.dark .bg-white          { background-color: #111827 !important; }
-html.dark .bg-slate-50       { background-color: #1e293b !important; }
-html.dark .bg-slate-100      { background-color: #1e293b !important; }
-html.dark .bg-slate-200      { background-color: #334155 !important; }
-html.dark .bg-slate-800      { background-color: #0f172a !important; }
-html.dark .bg-slate-900      { background-color: #020617 !important; }
+/* backgrounds（浅色里 slate-50 = 页面底、white = 卡片，深色保持同样的层级） */
+html.dark .bg-white          { background-color: #1f1d19 !important; }
+html.dark .bg-slate-50       { background-color: #161512 !important; }
+html.dark .bg-slate-100      { background-color: #262420 !important; }
+html.dark .bg-slate-200      { background-color: #302d28 !important; }
+html.dark .bg-slate-800      { background-color: #0f0e0c !important; }
+html.dark .bg-slate-900      { background-color: #45413a !important; }
 
 /* header backdrop */
-html.dark .bg-white\/90      { background-color: rgb(17 24 39 / 0.93) !important; }
-html.dark .bg-white\/80      { background-color: rgb(17 24 39 / 0.85) !important; }
-html.dark .bg-slate-50\/90   { background-color: rgb(30 41 59 / 0.93) !important; }
+html.dark .bg-white\/90      { background-color: rgb(31 29 25 / 0.93) !important; }
+html.dark .bg-white\/80      { background-color: rgb(31 29 25 / 0.85) !important; }
+html.dark .bg-white\/95      { background-color: rgb(31 29 25 / 0.95) !important; }
+html.dark .bg-slate-50\/90   { background-color: rgb(22 21 18 / 0.93) !important; }
+
+/* 其它半透明底（吸顶工具条、提示条、标签底）——深色下也按层级映射 */
+html.dark .bg-slate-50\/95   { background-color: rgb(22 21 18 / 0.95) !important; }
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/60   { background-color: rgb(22 21 18 / 0.7) !important; }
+html.dark .bg-slate-50\/50,
+html.dark .bg-slate-50\/40   { background-color: rgb(38 36 32 / 0.5) !important; }
+html.dark .bg-white\/70,
+html.dark .bg-white\/60      { background-color: rgb(31 29 25 / 0.7) !important; }
+html.dark .bg-white\/50,
+html.dark .bg-white\/30      { background-color: rgb(31 29 25 / 0.5) !important; }
+html.dark .bg-slate-200\/60  { background-color: rgb(48 45 40 / 0.6) !important; }
+html.dark .bg-sky-50\/50, html.dark .bg-sky-50\/30, html.dark .bg-sky-50\/60,
+html.dark .bg-violet-50\/50  { background-color: var(--brand-tint) !important; }
+html.dark .bg-amber-50\/70, html.dark .bg-amber-50\/60 { background-color: #2a2213 !important; }
+html.dark .bg-rose-50\/60, html.dark .bg-rose-50\/30   { background-color: #2c1718 !important; }
+html.dark .bg-emerald-50\/50 { background-color: #16241c !important; }
 
 /* text */
-html.dark .text-slate-900    { color: #f1f5f9 !important; }
-html.dark .text-slate-800    { color: #e2e8f0 !important; }
-html.dark .text-slate-700    { color: #cbd5e1 !important; }
-html.dark .text-slate-600    { color: #94a3b8 !important; }
-html.dark .text-slate-500    { color: #64748b !important; }
-html.dark .text-slate-400    { color: #475569 !important; }
-/* text-slate-300 只用于深色底（白底上根本看不清），所以暗色模式不该把它反向调深
-   —— 否则深色底 + 深色字 = 黑底黑字。保持浅色。 */
-html.dark .text-slate-300    { color: #cbd5e1 !important; }
+html.dark .text-slate-900    { color: #eeebe4 !important; }
+html.dark .text-slate-800    { color: #e2ded5 !important; }
+html.dark .text-slate-700    { color: #cfcac0 !important; }
+html.dark .text-slate-600    { color: #a8a397 !important; }
+html.dark .text-slate-500    { color: #8c877c !important; }
+html.dark .text-slate-400    { color: #6e6a61 !important; }
+/* .text-slate-300 原本多用在深色底上（深色按钮里的次要字），深色模式下仍保持偏亮 */
+html.dark .text-slate-300    { color: #bdb7ab !important; }
 
 /* borders */
-html.dark .border-slate-100  { border-color: #1e293b !important; }
-html.dark .border-slate-200  { border-color: #334155 !important; }
-html.dark .border-slate-300  { border-color: #475569 !important; }
+html.dark .border-slate-100  { border-color: #262420 !important; }
+html.dark .border-slate-200  { border-color: #33302a !important; }
+html.dark .border-slate-300  { border-color: #45413a !important; }
 
-/* divides */
-html.dark .divide-slate-100 > * + * { border-color: #1e293b !important; }
-html.dark .divide-slate-200 > * + * { border-color: #334155 !important; }
+/* dividers */
+html.dark .divide-slate-100 > * { border-color: #262420 !important; }
+/* Tailwind v4 的 divide 画在「除最后一个外每个子元素」的下边框上，所以要覆盖全部子元素，不能只写 * + * */
+html.dark .divide-slate-200 > * { border-color: #33302a !important; }
 
 /* hover states */
-html.dark .hover\:bg-slate-50:hover  { background-color: #1e293b !important; }
-html.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
-html.dark .hover\:bg-white:hover     { background-color: #1e293b !important; }
+html.dark .hover\:bg-slate-50:hover  { background-color: #24221e !important; }
+html.dark .hover\:bg-slate-100:hover { background-color: #2d2a25 !important; }
+html.dark .hover\:bg-white:hover     { background-color: #24221e !important; }
 
-/* shadows */
-html.dark .shadow-sm  { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4) !important; }
-html.dark .shadow     { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4) !important; }
-html.dark .shadow-md  { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.45) !important; }
-html.dark .shadow-lg  { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5) !important; }
-html.dark .shadow-xl  { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.55), 0 8px 10px -6px rgb(0 0 0 / 0.55) !important; }
+/* 浅色里映射到品牌色的那几组（sky/blue/violet/indigo/purple/orange），深色也映射到品牌色，不再变回真蓝真紫 */
+html.dark .bg-sky-50, html.dark .bg-blue-50, html.dark .bg-violet-50, html.dark .bg-indigo-50,
+html.dark .bg-purple-50, html.dark .bg-orange-50, html.dark .bg-violet-100 { background-color: var(--brand-tint) !important; }
+html.dark .text-sky-600, html.dark .text-sky-700, html.dark .text-sky-800, html.dark .text-blue-600,
+html.dark .text-violet-600, html.dark .text-violet-700, html.dark .text-indigo-600,
+html.dark .text-orange-600, html.dark .text-orange-700 { color: var(--brand) !important; }
+html.dark .border-sky-100, html.dark .border-sky-200, html.dark .border-violet-200,
+html.dark .border-indigo-200, html.dark .border-orange-200 { border-color: var(--brand-border) !important; }
 
-/* tinted backgrounds — darken but keep hue */
-html.dark .bg-violet-50  { background-color: #1e1b4b !important; }
-html.dark .bg-violet-100 { background-color: #2e1065 !important; }
-html.dark .bg-emerald-50 { background-color: #022c22 !important; }
-html.dark .bg-sky-50     { background-color: #082f49 !important; }
-html.dark .bg-amber-50   { background-color: #451a03 !important; }
-html.dark .bg-rose-50    { background-color: #4c0519 !important; }
-html.dark .bg-orange-50  { background-color: #431407 !important; }
-html.dark .bg-blue-50    { background-color: #172554 !important; }
-html.dark .bg-indigo-50  { background-color: #1e1b4b !important; }
-html.dark .bg-teal-50    { background-color: #042f2e !important; }
-
-/* tinted text colors — lighten */
-html.dark .text-violet-700  { color: #a78bfa !important; }
-html.dark .text-violet-600  { color: #8b5cf6 !important; }
-html.dark .text-emerald-600 { color: #34d399 !important; }
-html.dark .text-emerald-700 { color: #10b981 !important; }
-html.dark .text-sky-600     { color: #38bdf8 !important; }
-html.dark .text-sky-700     { color: #0ea5e9 !important; }
-html.dark .text-amber-600   { color: #fbbf24 !important; }
-html.dark .text-amber-700   { color: #f59e0b !important; }
-html.dark .text-rose-600    { color: #fb7185 !important; }
-html.dark .text-rose-700    { color: #f43f5e !important; }
-html.dark .text-orange-600  { color: #fb923c !important; }
-html.dark .text-indigo-600  { color: #818cf8 !important; }
-html.dark .text-teal-600    { color: #2dd4bf !important; }
-html.dark .text-blue-600    { color: #60a5fa !important; }
-
-/* tinted borders */
-html.dark .border-violet-200 { border-color: #4c1d95 !important; }
-html.dark .border-emerald-200 { border-color: #064e3b !important; }
-html.dark .border-sky-200     { border-color: #075985 !important; }
-html.dark .border-amber-200   { border-color: #78350f !important; }
+/* 语义色（成功/警示/风险）保留色相，只降饱和、压暗底 */
+html.dark .bg-emerald-50  { background-color: #16241c !important; }
+html.dark .bg-amber-50    { background-color: #2a2213 !important; }
+html.dark .bg-rose-50, html.dark .bg-red-50 { background-color: #2c1718 !important; }
+html.dark .bg-teal-50     { background-color: #142522 !important; }
+html.dark .text-emerald-600, html.dark .text-emerald-700 { color: #74c79d !important; }
+html.dark .text-amber-600, html.dark .text-amber-700, html.dark .text-amber-800 { color: #e0b25a !important; }
+html.dark .text-rose-600, html.dark .text-rose-700, html.dark .text-red-700 { color: #ef8f8a !important; }
+html.dark .text-teal-600  { color: #6cc4b6 !important; }
+html.dark .text-blue-600  { color: var(--brand) !important; }
+html.dark .border-emerald-200 { border-color: #2b4a39 !important; }
+html.dark .border-amber-200   { border-color: #574522 !important; }
+html.dark .border-rose-200, html.dark .border-red-200 { border-color: #5a2d2c !important; }
 
 /* inputs */
 html.dark input,

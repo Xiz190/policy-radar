@@ -8,7 +8,6 @@ import { CategoryChip } from "@/components/category-chip";
 import { ImportanceBadge } from "@/components/importance-badge";
 import { ItemForecastPanel } from "@/components/item-forecast-panel";
 import { ExpandableList, ExpandableText } from "@/components/expandable-text";
-import { RecaptureButton } from "@/components/recapture-button";
 import { RecomputePriorityButton } from "@/components/recompute-priority-button";
 import { BackButton } from "@/components/back-button";
 import { QuickActionBar } from "@/components/quick-action-bar";
@@ -580,61 +579,41 @@ export function ItemDetailTabs({
         </div>
       ) : null}
 
-      {/* 元信息 */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-        <span>部委：{item.departmentName}</span>
-        <span className="text-slate-300">·</span>
-        <span>栏目：{item.channelName}</span>
-        <span className="text-slate-300">·</span>
-        <span>列表日期：{item.listPublishedAt}</span>
+      {/* 元信息：只留来源 · 栏目 · 日期（+生效/截止）；抓取时间是调试信息，放进日期的悬停提示 */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+        <span className="font-medium text-slate-700">{item.departmentName}</span>
+        {item.channelName ? (
+          <>
+            <span className="text-slate-300" aria-hidden>·</span>
+            <span>{item.channelName}</span>
+          </>
+        ) : null}
+        <span className="text-slate-300" aria-hidden>·</span>
+        <time
+          className="tabular-nums"
+          title={[
+            item.firstSeenAt ? `首次发现：${new Date(item.firstSeenAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}` : "",
+            item.capturedAt ? `正文抓取于：${new Date(item.capturedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}` : "",
+          ].filter(Boolean).join("\n")}
+        >
+          {item.listPublishedAt}
+        </time>
         {item.effectiveFrom ? (
           <>
-            <span className="text-slate-300">·</span>
+            <span className="text-slate-300" aria-hidden>·</span>
             <span className="text-emerald-700">生效：{item.effectiveFrom}</span>
           </>
         ) : null}
         {item.effectiveTo ? (
           <>
-            <span className="text-slate-300">·</span>
+            <span className="text-slate-300" aria-hidden>·</span>
             <span className="text-amber-700">至：{item.effectiveTo}</span>
           </>
         ) : null}
         {item.deadlineDate ? (
           <>
-            <span className="text-slate-300">·</span>
+            <span className="text-slate-300" aria-hidden>·</span>
             <span className="text-rose-700">截止：{item.deadlineDate}</span>
-          </>
-        ) : null}
-        {item.extractedDates && item.extractedDates.length > 0 ? (
-          <details className="ml-2 inline-block text-xs text-slate-500">
-            <summary className="cursor-pointer select-none">· 文中所有日期 ({item.extractedDates.length})</summary>
-            <div className="mt-2 space-y-1">
-              {item.extractedDates.slice(0, 20).map((d, idx) => {
-                const labelMap: Record<string, string> = {
-                  published: "发布",
-                  effective_from: "生效",
-                  effective_to: "有效期至",
-                  deadline: "截止",
-                };
-                return (
-                  <div key={idx} className="whitespace-pre-wrap break-words">
-                    {labelMap[d.type] || d.type}：{d.date}
-                    {d.raw ? `（${d.raw}）` : ""}
-                  </div>
-                );
-              })}
-              {item.extractedDates.length > 20 ? (
-                <div className="text-slate-400">（共 {item.extractedDates.length} 条，仅显示前 20 条）</div>
-              ) : null}
-            </div>
-          </details>
-        ) : null}
-        <span className="text-slate-300">·</span>
-        <span>首次发现：{item.firstSeenAt ? new Date(item.firstSeenAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "-"}</span>
-        {item.capturedAt ? (
-          <>
-            <span className="text-slate-300">·</span>
-            <span>正文抓取于：{new Date(item.capturedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}</span>
           </>
         ) : null}
       </div>
@@ -654,21 +633,13 @@ export function ItemDetailTabs({
           initialRead={item.isRead}
           onCompareClick={handleCompareToggle}
           isInCompare={isInCompare()}
+          originalUrl={item.finalUrl || item.url}
+          isMock={isMock}
         />
       </div>
 
-      {/* 原网址和返回按钮 */}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-4">
         <BackButton />
-        <a
-          href={item.finalUrl || item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
-          打开原网址 ↗
-        </a>
-        <RecaptureButton sourceId={item.sourceId} url={item.url} isMock={isMock} />
       </div>
 
       <div className="mt-6 space-y-6">

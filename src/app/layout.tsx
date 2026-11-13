@@ -8,6 +8,7 @@ import { ServiceWorkerRegistration } from "@/components/service-worker-registrat
 import { NavigationProgress } from "@/components/navigation-progress";
 import { DemoModeGate } from "@/components/demo-mode-gate";
 import { ViewportZoomWatcher } from "@/components/viewport-zoom-watcher";
+import { LegacyDataMigrator } from "@/components/legacy-data-migrator";
 
 // 编辑台字体系统：衬线标题(Newsreader) + 无衬线正文(IBM Plex Sans) + 等宽数据(IBM Plex Mono)
 const serif = Newsreader({
@@ -65,6 +66,7 @@ export default function RootLayout({
           <ChatbotWidget />
           <MobileBottomNav />
           <ViewportZoomWatcher />
+          <LegacyDataMigrator />
           <ServiceWorkerRegistration />
         </PrefsProvider>
       </body>
