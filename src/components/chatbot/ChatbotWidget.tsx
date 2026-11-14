@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bot, ClipboardList, Download, FileText, FolderOpen, Lightbulb, MessageCircle, MessageSquare, Paperclip, Rocket, Ruler, ShoppingCart, Target, Trash2,
 } from "lucide-react";
 import { ChatEngine, SearchResult, SignalAnalysisResult } from "@/lib/chatbot/chat-engine";
 import { parseFile, ParsedResult } from "@/lib/chatbot/file-parser";
 import { usePrefs } from "@/contexts/prefs-context";
+import { isCompanionPath } from "@/lib/companion/nav";
 
 interface TextMessage {
   id: string;
@@ -152,6 +154,7 @@ function formatTitleFromFirstMessage(content: string): string {
 
 export function ChatbotWidget() {
   const { language } = usePrefs();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const loadedState = useMemo(() => loadState(), []);
   const [conversations, setConversations] = useState<Conversation[]>(loadedState.conversations);
@@ -443,6 +446,10 @@ export function ChatbotWidget() {
         height: boxH,
       }
     : { width: boxW, height: boxH };
+
+  // 伴侣版（/m）是手机屏，浮动客服按钮会压住底部 toolbar，整块不渲染。
+  // 放在所有 hook 之后——提前 return 会改变 hook 调用顺序。
+  if (isCompanionPath(pathname)) return null;
 
   return (
     <>

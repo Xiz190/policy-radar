@@ -1,0 +1,19 @@
+{
+  "name": "政策雷达",
+  "short_name": "政策雷达",
+  "description": "政策雷达伴侣版 —— 随时随地看政策信号",
+  "start_url": "/m",
+  "display": "standalone",
+  "background_color": "#f7f6f3",
+  "theme_color": "#1f5e7e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["news", "productivity"],
+  "lang": "zh-CN"
+}

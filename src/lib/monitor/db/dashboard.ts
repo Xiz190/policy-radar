@@ -179,6 +179,15 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
     [since],
   );
   const topRow = totalRes.rows[0];
+  // 全量（不限时间窗）：「收录总量」「未读 / 已标星」用它，别拿时间窗内的数冒充总量
+  const allTimeRes = await pool.query<{ total: string; unread: string; starred: string }>(
+    `select count(*)::text as total,
+            count(case when not is_read then 1 end)::text as unread,
+            count(case when is_starred then 1 end)::text as starred
+     from monitor_items
+     where source_id in (select id from monitor_sources where enabled = true)`,
+  );
+  const allRow = allTimeRes.rows[0];
 
   // 「近期最重点」头条：按 keyword_score + 新近度排真实条目（= 最重点，头条直接呈现"实质"而非计数）。
   // summary 作为解读行——有则显示，无则前端自动省略（不强求，本台暂无摘要生成器）。
@@ -287,6 +296,11 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
       core: Number(topRow?.core ?? 0),
       highlight: Number(topRow?.highlight ?? 0),
       mid: Number(topRow?.mid ?? 0),
+    },
+    allTime: {
+      total: Number(allRow?.total ?? 0),
+      unread: Number(allRow?.unread ?? 0),
+      starred: Number(allRow?.starred ?? 0),
     },
     departmentStats: deptStats,
     importanceDistribution: importanceDist,

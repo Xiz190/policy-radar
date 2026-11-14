@@ -727,6 +727,7 @@ export function generateMockDashboard(days: number = 14, topKeywordsLimit: numbe
   return {
     periodDays: days,
     counts: { total: 2073, unread: 312, starred: 86, urgent: 72, highlight: 245 },
+    allTime: { total: 3315, unread: 540, starred: 86 },
     departmentStats,
     importanceDistribution: [
       { level: "core", label: "核心关注", count: 72, color: "#ef4444" },

@@ -420,3 +420,41 @@ html[data-visitor] [data-owner-only] {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   手机伴侣版（/m）作用域
+   ============================================================
+   仅作用于带 data-companion 的子树；桌面站没有该属性，
+   因此以下规则对桌面站零影响。
+   ============================================================ */
+
+/* 品牌色的深阶，用于衬线的系统文案（摘要块、Today 排序标题）。
+   从 --brand 推导，换领域色时自动跟着走。 */
+[data-companion] {
+  --brand-ink: color-mix(in oklab, var(--brand) 78%, black);
+}
+
+/* 正文关键词命中高亮：固定浅黄，不随品牌色走。
+   与摘要块的「品牌色衬线」是两套语言，必须区分。 */
+[data-companion] mark.kw {
+  background: #f7ecce;
+  color: #7a5a17;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 0 3px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* 桌面 root layout 的 <body> 带 pb-16（给固定底部导航留位）。
+   伴侣版有自己的底部导航，内容内边距由自己控制，这里豁免掉。 */
+body:has([data-companion]) {
+  padding-bottom: 0;
+}
+
+/* 伴侣版半透明底（tab bar / 详情工具栏）。深色下按页面底映射，
+   否则 #f7f6f3 叠 92% 会在深色里闪一块近白。 */
+html.dark .bg-slate-50\/92,
+html.dark .bg-slate-50\/94 {
+  background-color: rgb(22 21 18 / 0.93) !important;
+}

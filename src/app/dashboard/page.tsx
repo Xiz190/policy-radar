@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SectionCard } from "@/components/section-card";
+import { useDemoVisitor } from "@/hooks/use-demo-visitor";
 import { categoryMeta, TOPIC_CATEGORIES, filterTopicCategories } from "@/lib/monitor/content-meta";
 import { formatDateShortNoPad } from "@/lib/date-utils";
 import {
@@ -15,6 +16,7 @@ import {
 type DashboardData = {
   periodDays: number;
   counts: { total: number; unread: number; starred: number; urgent: number; highlight: number };
+  allTime?: { total: number; unread: number; starred: number };
   departmentStats: { departmentName: string; total: number; todayCount: number; series: { date: string; count: number }[] }[];
   importanceDistribution: { level: string; label: string; count: number; color: string }[];
   signalTrend: { dates: string[]; series: { key: string; label: string; color: string; values: number[] }[] };
@@ -338,6 +340,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
   const [hasSubscription, setHasSubscription] = useState(false);
+  // 演示站访客：关注列表是作者的（全站一份，访客改不了）→ 当「作者关注」展示，不给设置入口
+  const visitor = useDemoVisitor();
   const [days, setDays] = useState(14);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
@@ -620,11 +624,11 @@ export default function DashboardPage() {
                       <div className="mt-6 grid grid-cols-2 gap-x-10 gap-y-4">
                         <div>
                           <div className="text-[11px] text-slate-400">收录总量</div>
-                          <div className="mt-0.5 font-serif text-lg font-bold tabular-nums text-slate-900">{data.counts.total}</div>
+                          <div className="mt-0.5 font-serif text-lg font-bold tabular-nums text-slate-900">{data.allTime?.total ?? data.counts.total}</div>
                         </div>
                         <div>
                           <div className="text-[11px] text-slate-400">未读 / 已标星</div>
-                          <div className="mt-0.5 font-semibold tabular-nums text-slate-600">{data.counts.unread} / {data.counts.starred}</div>
+                          <div className="mt-0.5 font-semibold tabular-nums text-slate-600">{data.allTime?.unread ?? data.counts.unread} / {data.allTime?.starred ?? data.counts.starred}</div>
                         </div>
                         <div>
                           <div className="text-[11px] text-slate-400">本周新增</div>
@@ -667,18 +671,19 @@ export default function DashboardPage() {
               })()}
             </SectionCard>
 
+            {!(visitor && !hasSubscription) && (
             <SectionCard
-              title="与我相关的趋势"
+              title={visitor ? "作者关注的趋势" : "与我相关的趋势"}
               collapsible storageKey="personalized-trends"
               forceCollapsed={forceCollapsed}
-              rightSlot={
+              rightSlot={visitor ? undefined : (
                 <a
                   href="/subscribe"
                   className="inline-flex items-center gap-1 text-[11px] text-slate-500 transition hover:text-slate-700"
                 >
                   {hasSubscription ? "管理关注" : "去设置"} →
                 </a>
-              }
+              )}
               bodyClassName="p-5"
             >
               {!hasSubscription ? (
@@ -688,7 +693,7 @@ export default function DashboardPage() {
                 personalizedTrends.followedKeywordStats.length === 0 &&
                 personalizedTrends.followedCategoryStats.length === 0
               ) ? (
-                <EmptyHint text="暂无与你关注项匹配的数据，建议调整关注范围" />
+                <EmptyHint text={visitor ? "近期没有与作者关注项匹配的数据" : "暂无与你关注项匹配的数据，建议调整关注范围"} />
               ) : (
                 <div className="space-y-6">
                   {/* 命中概览 + 查看相关动态（原「我的关注今日命中」卡并入此处） */}
@@ -711,7 +716,7 @@ export default function DashboardPage() {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <span className="text-sm"></span>
-                        <span className="text-xs font-semibold text-slate-900">我关注的机构更新</span>
+                        <span className="text-xs font-semibold text-slate-900">{visitor ? "作者" : "我"}关注的机构更新</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
                           {personalizedTrends.followedDepartmentStats.length} 个
                         </span>
@@ -748,7 +753,7 @@ export default function DashboardPage() {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <span className="text-sm"></span>
-                        <span className="text-xs font-semibold text-slate-900">我关注的关键词命中</span>
+                        <span className="text-xs font-semibold text-slate-900">{visitor ? "作者" : "我"}关注的关键词命中</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
                           {personalizedTrends.followedKeywordStats.length} 个
                         </span>
@@ -779,7 +784,7 @@ export default function DashboardPage() {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <span className="text-sm"></span>
-                        <span className="text-xs font-semibold text-slate-900">我关注的分类热度</span>
+                        <span className="text-xs font-semibold text-slate-900">{visitor ? "作者" : "我"}关注的分类热度</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
                           {personalizedTrends.followedCategoryStats.length} 个
                         </span>
@@ -815,6 +820,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </SectionCard>
+            )}
           </>
         ) : null}
       </div>

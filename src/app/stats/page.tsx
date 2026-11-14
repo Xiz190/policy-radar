@@ -96,7 +96,7 @@ export default function StatsPage() {
             <section>
               <h2 className="mb-3 text-sm font-semibold text-slate-700"><Inbox className="mr-1 inline h-3.5 w-3.5" aria-hidden />收件箱概览（近 {dash.periodDays} 天）</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatBlock label="入库条目" value={dash.counts.total} sub="总量" />
+                <StatBlock label="入库条目" value={dash.counts.total} sub="近 30 天" />
                 <StatBlock label="已读" value={dash.counts.total - dash.counts.unread} sub={`完成率 ${readPct}%`} accent="var(--brand)" />
                 <StatBlock label="标星/核心" value={dash.counts.starred + dash.counts.urgent} sub={`参与率 ${engagementPct}%`} />
                 <StatBlock label="未读积压" value={dash.counts.unread} sub="待处理" />

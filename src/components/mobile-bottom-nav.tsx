@@ -6,6 +6,7 @@ import { usePrefs } from "@/contexts/prefs-context";
 import { useT, type TranslationKey } from "@/lib/i18n";
 import { useDemoVisitor } from "@/hooks/use-demo-visitor";
 import { isOwnerOnlyPage } from "@/lib/owner-only";
+import { isCompanionPath } from "@/lib/companion/nav";
 import {
   House, Inbox, RadioTower, Settings,
 } from "lucide-react";
@@ -24,6 +25,8 @@ export function MobileBottomNav() {
   // 演示站访客看不到「监测」（系统管理是作者专属页）
   const visitor = useDemoVisitor();
   if (focusMode) return null;
+  // 伴侣版（/m）有自己的底部 tab bar，别再叠一层
+  if (isCompanionPath(pathname)) return null;
 
   const tabs = visitor ? TABS.filter((tab) => !isOwnerOnlyPage(tab.href)) : TABS;
 

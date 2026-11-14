@@ -7,6 +7,7 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { DemoModeGate } from "@/components/demo-mode-gate";
+import { CompanionHint } from "@/components/companion-hint";
 import { ViewportZoomWatcher } from "@/components/viewport-zoom-watcher";
 import { LegacyDataMigrator } from "@/components/legacy-data-migrator";
 
@@ -62,6 +63,7 @@ export default function RootLayout({
           <NavigationProgress />
           {/* 公开快照站：访客只读提示条（本地开发/作者登录后不渲染） */}
           <DemoModeGate />
+          <CompanionHint />
           {children}
           <ChatbotWidget />
           <MobileBottomNav />
